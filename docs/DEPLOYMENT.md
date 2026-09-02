@@ -121,6 +121,17 @@ These are properties of the hosting, not bugs — worth knowing before a demo:
 
 ## Running locally
 
+**Easiest — one command from the repository root:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run-local.ps1
+```
+
+It clears the ports, trains the models if they are missing, writes
+`frontend/.env`, starts both servers and opens the browser.
+
+**Manually, two terminals:**
+
 ```bash
 # terminal 1
 cd backend
@@ -128,15 +139,37 @@ pip install -r requirements-dev.txt
 python scripts/generate_data.py --days 30 --interval 5
 python scripts/train.py
 python scripts/evaluate.py
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 # terminal 2
 cd frontend
 npm install
 cp .env.example .env
-npm run dev
+npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-Backend on http://localhost:8000 (docs at `/docs`), dashboard on
-http://localhost:5173. The default `CORS_ORIGINS` already allows the Vite dev
-server.
+Then open **http://127.0.0.1:5173**.
+
+### Use 127.0.0.1, not "localhost", on Windows
+
+This is worth reading once, because the symptom is confusing: the dashboard
+reports "Cannot reach the API" while the API is demonstrably running and
+answering `curl`.
+
+On Windows, `localhost` resolves to the IPv6 address `::1` **before** the IPv4
+`127.0.0.1`, and browsers follow that order. A server started with
+`--host 127.0.0.1` listens on IPv4 only and is therefore invisible to a browser
+asking for `::1`; a server started with `--host ::` has the mirror-image
+problem. Binding and browsing the same literal IPv4 address removes name
+resolution from the picture entirely.
+
+Diagnose it with:
+
+```bash
+curl http://127.0.0.1:8000/api/health   # IPv4
+curl http://[::1]:8000/api/health       # IPv6
+```
+
+If one returns 200 and the other fails to connect, this is what you are hitting.
+It affects local development only — Render binds `0.0.0.0` on its own port and
+Vercel serves over HTTPS.

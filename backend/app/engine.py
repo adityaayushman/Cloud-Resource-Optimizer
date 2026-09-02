@@ -261,8 +261,17 @@ class ResourceAllocator:
         watts = sum(vm.power_watts() for vm in self.vms)
         co2_hr = watts / 1000.0 * carbon_kg_per_kwh(self.region)
 
-        violations = self._sla_violations()
-        sla = 100.0 - (violations / len(self.vms) * 100.0) if self.vms else 100.0
+        # SLA is a property of the *system*, not of individual nodes. A node at
+        # 99% with headroom elsewhere in the fleet is efficient bin-packing, not
+        # a breach - scoring it as one made a well-packed fleet report 16.7%
+        # compliance while serving every task. A breach means the fleet could
+        # not serve the work: aggregate utilisation leaves no headroom, or tasks
+        # were actually rejected.
+        hot_nodes = self._sla_violations()
+        attempted_all = self.placed_tasks + self.failed_tasks
+        reject_rate = (self.failed_tasks / attempted_all) if attempted_all else 0.0
+        headroom_penalty = max(0.0, cpu_util - 95.0) * 4.0
+        sla = max(0.0, 100.0 - reject_rate * 100.0 - headroom_penalty)
         pressure = max((vm.cpu_utilization for vm in self.vms), default=0.0) * 100.0
 
         attempted = self.placed_tasks + self.failed_tasks
@@ -293,7 +302,8 @@ class ResourceAllocator:
             "accrued_co2_kg": round(self.accrued_co2_kg, 4),
             "accrued_energy_kwh": round(self.accrued_energy_kwh, 4),
             "sla_compliance": round(sla, 2),
-            "sla_violations": violations,
+            "sla_violations": hot_nodes,
+            "hot_nodes": hot_nodes,
             "provisioning_pressure": round(pressure, 2),
             "tasks_running": sum(len(vm.tasks) for vm in self.vms),
             "tasks_completed": self.completed_tasks,
@@ -706,16 +716,31 @@ class AdvisoryEngine:
                         "urgency": "medium",
                     })
 
-        # 4. SLA risk
-        if metrics["sla_violations"] > 0:
+        # 4. SLA risk. Fires on a system-level problem - the fleet as a whole has
+        # no headroom, or work is already being rejected. Individually hot nodes
+        # are reported as `hot_nodes` but are not an alert on their own: tight
+        # packing is the goal, and alerting on it cries wolf on every full node.
+        saturated = metrics["cpu_utilization"] > 95.0
+        rejecting = metrics["task_failure_rate"] > 3.0
+        straining = metrics["cpu_utilization"] > 88.0 or metrics["task_failure_rate"] > 1.0
+        if saturated or rejecting or straining:
             warnings.append({
                 "type": "SLA_RISK",
-                "severity": "critical",
+                # Severity tracks how bad it actually is. Labelling a fleet at
+                # 81% with 1.5% rejection "critical" trains operators to ignore
+                # the word.
+                "severity": "critical" if (saturated or rejecting) else "warning",
                 "message": (
-                    f"{metrics['sla_violations']} node(s) above "
-                    f"{SLA_CRITICAL_UTILISATION * 100:.0f}% CPU. Queueing delay is likely."
+                    f"Fleet at {metrics['cpu_utilization']:.0f}% with "
+                    f"{metrics['hot_nodes']} of {metrics['fleet_size']} node(s) saturated; "
+                    f"{metrics['task_failure_rate']:.2f}% of submitted work rejected so far."
                 ),
-                "eta": "immediate",
+                "eta": "immediate" if saturated else "next 15-30 min",
+            })
+            recommendations.append({
+                "action": "Add capacity ahead of the next interval",
+                "benefit": "Restores headroom before queueing turns into dropped work.",
+                "urgency": "high" if (saturated or rejecting) else "medium",
             })
 
         # 5. Anomaly

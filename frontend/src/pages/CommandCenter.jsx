@@ -234,7 +234,7 @@ export default function CommandCenter({ session, guard, busy, step }) {
         <StatTile
           label="SLA compliance" value={m.sla_compliance.toFixed(1)} unit="%"
           tone={m.sla_compliance >= 95 ? 'good' : m.sla_compliance >= 80 ? 'warning' : 'critical'}
-          sub={`${m.sla_violations} node(s) above threshold`}
+          sub={`${m.hot_nodes ?? 0} node(s) saturated · ${m.task_failure_rate.toFixed(2)}% work rejected`}
         />
         <StatTile
           label="Carbon" value={m.co2_kg_per_hour.toFixed(3)} unit="kg/hr"
