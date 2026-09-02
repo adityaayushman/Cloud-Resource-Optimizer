@@ -31,6 +31,14 @@ from app.simulation import SimulationHarness  # noqa: E402
 DATA = ROOT / "data" / "workload_history.csv"
 ARTIFACTS = ROOT / "artifacts"
 
+# Populated from CLI args in main(); lets RL pre-training run against a real
+# trace with an appropriately sized fleet cap.
+_HARNESS_KW: dict = {}
+
+
+def _harness() -> SimulationHarness:
+    return SimulationHarness(artifacts_dir=ARTIFACTS, **_HARNESS_KW)
+
 
 def train_predictors(df: pd.DataFrame, tune: bool) -> dict:
     reports = {}
@@ -126,7 +134,7 @@ def pretrain_rl(episodes: int, ticks: int) -> dict:
 
     print(f"\n=== Pre-training DQN: {episodes} episodes x {ticks} ticks ===")
     agent = DQNAgent(seed=42)
-    harness = SimulationHarness(artifacts_dir=ARTIFACTS)
+    harness = _harness()
     harness.use_shared_agents(dqn=agent)
 
     # Training episodes each use a different seed so the agent sees varied
@@ -220,7 +228,7 @@ def train_qlearning(ticks: int, episodes: int) -> dict:
 
     print(f"\n=== Pre-training tabular Q-learning: {episodes} episodes ===")
     agent = QLearningAgent(actions=5, seed=42)
-    harness = SimulationHarness(artifacts_dir=ARTIFACTS)
+    harness = _harness()
     harness.use_shared_agents(qagent=agent)
 
     # Identical protocol to the DQN: same eval seed, same checkpoint selection,
@@ -282,6 +290,12 @@ def main() -> int:
     ap.add_argument("--skip-rl", action="store_true")
     ap.add_argument("--rl-only", action="store_true",
                     help="reuse existing predictors; retrain only the agents")
+    ap.add_argument("--artifacts", type=Path, default=None,
+                    help="output directory (default: backend/artifacts)")
+    ap.add_argument("--trace", type=Path, default=None,
+                    help="replay this trace in RL pre-training instead of the generator")
+    ap.add_argument("--max-fleet", type=int, default=None,
+                    help="fleet cap for RL pre-training; scale with the workload")
     args = ap.parse_args()
 
     if not args.data.exists():
@@ -289,7 +303,14 @@ def main() -> int:
               file=sys.stderr)
         return 1
 
+    global ARTIFACTS
+    if args.artifacts:
+        ARTIFACTS = args.artifacts
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    _HARNESS_KW.update(
+        trace_path=str(args.trace) if args.trace else None,
+        max_fleet=args.max_fleet or 40,
+    )
     df = pd.read_csv(args.data)
     print(f"Loaded {len(df):,} rows from {args.data}")
 

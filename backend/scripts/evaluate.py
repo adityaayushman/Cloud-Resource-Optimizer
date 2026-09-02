@@ -33,13 +33,31 @@ def main() -> int:
     ap.add_argument("--ticks", type=int, default=288, help="288 ticks x 5 min = 24 h")
     ap.add_argument("--repeats", type=int, default=3, help="seeds per arm")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--trace", type=Path, default=None,
+                    help="replay a recorded trace instead of the synthetic generator")
+    ap.add_argument("--artifacts", type=Path, default=None,
+                    help="model directory (default: backend/artifacts)")
+    ap.add_argument("--max-fleet", type=int, default=40)
+    ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
 
-    harness = SimulationHarness(artifacts_dir=ARTIFACTS)
+    global ARTIFACTS
+    if args.artifacts:
+        ARTIFACTS = args.artifacts
+    out_path = args.out or (ARTIFACTS / "ablation.json")
+
+    harness = SimulationHarness(
+        artifacts_dir=ARTIFACTS,
+        trace_path=str(args.trace) if args.trace else None,
+        max_fleet=args.max_fleet,
+    )
     started = time.time()
 
-    print(f"Ablation: {len(STRATEGY_LABELS)} arms x {args.repeats} seeds "
-          f"x {args.ticks} ticks ({args.ticks * 5 / 60:.0f}h simulated)\n")
+    kind = f"real trace ({args.trace.name})" if args.trace else "synthetic generator"
+    print(f"Ablation on {kind}: {len(STRATEGY_LABELS)} arms x {args.repeats} seeds "
+          f"x {args.ticks} ticks ({args.ticks * 5 / 60:.0f}h simulated)")
+    print(f"  mean demand {harness.reference_cpu:.1f} cores, "
+          f"RAM:CPU {harness.reference_ratio:.2f}, fleet cap {args.max_fleet}\n")
 
     per_arm: dict[str, list[dict]] = {}
     for name in STRATEGY_LABELS:
@@ -89,6 +107,13 @@ def main() -> int:
 
     payload = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "workload": {
+            "kind": "real_trace" if args.trace else "synthetic",
+            "source": str(args.trace.name) if args.trace else "app/workload.py generator",
+            "reference_cpu_mean": round(harness.reference_cpu, 2),
+            "ram_cpu_ratio": round(harness.reference_ratio, 3),
+            "max_fleet": args.max_fleet,
+        },
         "protocol": {
             "ticks": args.ticks,
             "tick_seconds": 300,
@@ -107,10 +132,10 @@ def main() -> int:
         "elapsed_seconds": round(time.time() - started, 2),
     }
 
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    (ARTIFACTS / "ablation.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    print(f"\nWrote {ARTIFACTS / 'ablation.json'} in {payload['elapsed_seconds']}s")
+    print(f"\nWrote {out_path} in {payload['elapsed_seconds']}s")
     print(f"\n{'Configuration':<38} {'Util%':>7} {'$/day':>8} {'Latency':>9} {'Fail%':>7}")
     print("-" * 74)
     for row in rows:

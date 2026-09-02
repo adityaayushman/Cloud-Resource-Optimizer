@@ -26,7 +26,11 @@ from .ml.dqn import ACTION_NAMES, HEADROOM_LEVELS
 
 Strategy = Literal["first_fit", "best_fit", "worst_fit", "cost_aware"]
 
-MAX_FLEET = 40          # hard cap: an unbounded scale-up loop is a billing incident
+# Default hard cap. An unbounded scale-up loop is a billing incident, so a cap
+# always exists - but it is a property of the deployment, not of the code: a
+# datacentre replaying a 300-VM production trace needs a larger ceiling than the
+# small synthetic fleet. `ResourceAllocator(max_fleet=...)` overrides it.
+MAX_FLEET = 40
 MIN_FLEET = 1
 TARGET_UTILISATION = 0.72  # achievable given packing fragmentation; see pick_instance_type
 SLA_CRITICAL_UTILISATION = 0.92
@@ -37,8 +41,10 @@ SLA_CRITICAL_UTILISATION = 0.92
 # ---------------------------------------------------------------------------
 
 class ResourceAllocator:
-    def __init__(self, region: Region = Region.US_EAST, multi_cloud: bool = True):
+    def __init__(self, region: Region = Region.US_EAST, multi_cloud: bool = True,
+                 max_fleet: int = MAX_FLEET):
         self.vms: list[VMInstance] = []
+        self.max_fleet = int(max_fleet)
         self.region = region
         self.multi_cloud = multi_cloud
         self.clock: float = 0.0            # simulation seconds
@@ -61,7 +67,7 @@ class ResourceAllocator:
         weights: SelectionWeights | None = None,
     ) -> Optional[VMInstance]:
         """Provision one VM. Provider is chosen by the multi-cloud layer unless pinned."""
-        if len(self.vms) >= MAX_FLEET:
+        if len(self.vms) >= self.max_fleet:
             return None
 
         region = region or self.region
@@ -401,10 +407,10 @@ class AutoScaler:
             deficit = max(0.0, target_cpu - cap_cpu)
             deficit_ram = max(0.0, target_ram - cap_ram)
             guard = 0
-            capacity_left = len(self.allocator.vms) + len(self._pending) < MAX_FLEET
+            capacity_left = len(self.allocator.vms) + len(self._pending) < self.allocator.max_fleet
             while (deficit > 0 or deficit_ram > 0) and capacity_left:
                 guard += 1
-                if guard > MAX_FLEET:
+                if guard > self.allocator.max_fleet:
                     break
                 kind = pick_instance_type(deficit, deficit_ram)
                 if self.mode == "reactive":
@@ -417,7 +423,7 @@ class AutoScaler:
                     actions.append(f"added_{kind.value}")
                 deficit -= INSTANCE_SPECS[kind].cpu
                 deficit_ram -= INSTANCE_SPECS[kind].ram
-                capacity_left = len(self.allocator.vms) + len(self._pending) < MAX_FLEET
+                capacity_left = len(self.allocator.vms) + len(self._pending) < self.allocator.max_fleet
             self._last_action_tick = tick_index
 
         elif trigger_down and not on_cooldown:
@@ -449,7 +455,7 @@ def build_state(allocator: ResourceAllocator, predicted_cpu: float, predicted_ra
         min(2.0, predicted_ram / max(cap_ram, eps)),
         min(1.5, use_cpu / max(cap_cpu, eps)),
         min(1.5, use_ram / max(cap_ram, eps)),
-        len(allocator.vms) / MAX_FLEET,
+        len(allocator.vms) / max(1, allocator.max_fleet),
         min(3.0, cost_per_core),
     ]
 
@@ -538,6 +544,8 @@ def pick_instance_type(gap_cpu: float, gap_ram: float) -> InstanceType:
         return InstanceType.MEMORY
     # Compare deficits in CPU-equivalent units for the size decision.
     gap = max(gap_cpu, gap_ram / 2.0)
+    if gap > 13:
+        return InstanceType.XLARGE
     if gap > 6:
         return InstanceType.LARGE
     if gap > 2.5:
@@ -573,9 +581,9 @@ def apply_action(
         return c >= target_cpu and r >= target_ram
 
     guard = 0
-    while not satisfied(cap_cpu, cap_ram) and len(allocator.vms) < MAX_FLEET:
+    while not satisfied(cap_cpu, cap_ram) and len(allocator.vms) < allocator.max_fleet:
         guard += 1
-        if guard > MAX_FLEET:
+        if guard > allocator.max_fleet:
             break
         kind = pick_instance_type(target_cpu - cap_cpu, target_ram - cap_ram)
         vm = allocator.add_vm(kind)
@@ -588,7 +596,7 @@ def apply_action(
     guard = 0
     while len(allocator.vms) > MIN_FLEET:
         guard += 1
-        if guard > MAX_FLEET:
+        if guard > allocator.max_fleet:
             break
         # Retire the least useful node, but only while both resources stay
         # above the setpoint - never shrink below what the forecast calls for.
@@ -792,8 +800,9 @@ class SmartAllocator(ResourceAllocator):
         region: Region = Region.US_EAST,
         multi_cloud: bool = True,
         seed: int = 42,
+        max_fleet: int = MAX_FLEET,
     ):
-        super().__init__(region=region, multi_cloud=multi_cloud)
+        super().__init__(region=region, multi_cloud=multi_cloud, max_fleet=max_fleet)
         from collections import deque
         from pathlib import Path
 

@@ -38,6 +38,8 @@ INSTANCE_SPECS: dict[InstanceType, InstanceSpec] = {
     InstanceType.LARGE: InstanceSpec(8, 16, 0.200, 0.80, 200),
     # Memory-optimised: same cores as MEDIUM, double the RAM, ~30% dearer.
     InstanceType.MEMORY: InstanceSpec(4, 16, 0.130, 1.00, 110),
+    # Compute-dense: better price and power per core, as real catalogues offer.
+    InstanceType.XLARGE: InstanceSpec(16, 32, 0.380, 0.70, 360),
 }
 
 

@@ -39,15 +39,33 @@ def main() -> int:
     ap.add_argument("--seeds", type=int, nargs="+", default=[7, 42, 99])
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--interval", type=int, default=5)
+    ap.add_argument("--trace", type=Path, default=None,
+                    help="use a recorded trace instead of the synthetic generator; "
+                         "seeds then select different windows of it")
+    ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
 
     original_horizon = predictor_module.HORIZON
     started = time.time()
     results: list[dict] = []
 
-    frames = {s: pd.DataFrame(build_dataset(days=args.days, seed=s,
-                                            interval_minutes=args.interval))
-              for s in args.seeds}
+    if args.trace:
+        # A recorded trace has no randomness, so "seeds" select different
+        # contiguous windows of it. Each window is a distinct month-scale
+        # sample of the same production workload.
+        full = pd.read_csv(args.trace)
+        span = len(full)
+        width = max(2000, span // 2)
+        frames = {}
+        for i, s in enumerate(args.seeds):
+            start = int((i / max(1, len(args.seeds))) * (span - width))
+            frames[s] = full.iloc[start:start + width].reset_index(drop=True)
+        print(f"Trace: {args.trace.name}, {span:,} rows -> "
+              f"{len(args.seeds)} windows of {width:,}")
+    else:
+        frames = {s: pd.DataFrame(build_dataset(days=args.days, seed=s,
+                                                interval_minutes=args.interval))
+                  for s in args.seeds}
 
     print(f"Horizon study: {len(HORIZONS)} horizons x {len(ALGOS)} models "
           f"x {len(args.seeds)} seeds ({args.days} days each)\n")
@@ -93,6 +111,8 @@ def main() -> int:
             "days": args.days,
             "interval_minutes": args.interval,
             "horizons": HORIZONS,
+            "workload": "real_trace" if args.trace else "synthetic",
+            "trace": str(args.trace.name) if args.trace else None,
             "note": (
                 "Margin is model R2 minus persistence-baseline R2 on the held-out "
                 "test block, averaged over seeds. Positive means the learned model "
@@ -114,10 +134,10 @@ def main() -> int:
         "elapsed_seconds": round(time.time() - started, 2),
     }
 
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    (ARTIFACTS / "horizon_study.json").write_text(json.dumps(payload, indent=2),
-                                                  encoding="utf-8")
-    print(f"Wrote {ARTIFACTS / 'horizon_study.json'} in {payload['elapsed_seconds']}s")
+    out = args.out or (ARTIFACTS / "horizon_study.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(f"Wrote {out} in {payload['elapsed_seconds']}s")
     print(f"XGBoost first beats persistence on every seed at "
           f"{payload['conclusion']['breakeven_horizon_minutes']} minutes ahead.")
     return 0

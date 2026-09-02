@@ -261,3 +261,52 @@ def test_detector_round_trips(tmp_path, frame):
     restored = AnomalyDetector.load(tmp_path, "isolation_forest")
     assert restored.method == "isolation_forest"
     assert restored.check(10.0, 20.0)["method"] == "isolation_forest"
+
+
+# --------------------------------------------------------- trace replay
+
+def test_trace_source_matches_the_generator_contract(tmp_path):
+    """Replay must be a drop-in for the generator, or no strategy code is shared."""
+    from app.workload import TraceSource
+
+    frame = pd.DataFrame(build_dataset(days=3, seed=5, interval_minutes=5))
+    path = tmp_path / "trace.csv"
+    frame.to_csv(path, index=False)
+
+    src = TraceSource(path, seed=1, ticks_needed=100)
+    gen_keys = set(build_dataset(days=1, seed=1, interval_minutes=5)[0])
+    assert gen_keys <= set(src.step()), "trace record is missing generator fields"
+
+
+def test_trace_seeds_select_different_windows(tmp_path):
+    """Identical windows would make a multi-seed study report zero variance."""
+    from app.workload import TraceSource
+
+    frame = pd.DataFrame(build_dataset(days=10, seed=5, interval_minutes=5))
+    path = tmp_path / "trace.csv"
+    frame.to_csv(path, index=False)
+
+    starts = {TraceSource(path, seed=s, ticks_needed=288).start for s in range(6)}
+    assert len(starts) > 1
+
+
+def test_trace_replay_is_reproducible(tmp_path):
+    from app.workload import TraceSource
+
+    frame = pd.DataFrame(build_dataset(days=5, seed=5, interval_minutes=5))
+    path = tmp_path / "trace.csv"
+    frame.to_csv(path, index=False)
+
+    a = [TraceSource(path, seed=3, ticks_needed=50).step() for _ in range(1)]
+    b = [TraceSource(path, seed=3, ticks_needed=50).step() for _ in range(1)]
+    assert a[0]["cpu_demand"] == b[0]["cpu_demand"]
+
+
+def test_trace_rejects_a_window_longer_than_the_trace(tmp_path):
+    from app.workload import TraceSource
+
+    frame = pd.DataFrame(build_dataset(days=1, seed=5, interval_minutes=5))
+    path = tmp_path / "short.csv"
+    frame.to_csv(path, index=False)
+    with pytest.raises(ValueError):
+        TraceSource(path, seed=1, ticks_needed=10_000)

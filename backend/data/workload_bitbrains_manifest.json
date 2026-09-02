@@ -1,0 +1,19 @@
+{
+  "source": "Bitbrains GWA-T-12 (Grid Workloads Archive)",
+  "mirror": "github.com/muse-research-lab/cloud-forecast-data-persistence",
+  "subset": "1201308",
+  "subset_description": "fastStorage - 1,241 VMs on SAN storage, August 2013",
+  "vms_available": 1241,
+  "vms_sampled": 300,
+  "vms_loaded": 300,
+  "vms_skipped": 0,
+  "sampling": "uniform without replacement",
+  "seed": 42,
+  "interval_seconds": 300,
+  "rows": 8640,
+  "span_start": "2013-08-12 13:40:00",
+  "span_end": "2013-09-11 13:35:00",
+  "burst_labels": "heuristic (MAD rule on first difference, k=6, refractory=6)",
+  "fetched_at": "2026-09-03T01:53:28",
+  "elapsed_seconds": 62.5
+}
