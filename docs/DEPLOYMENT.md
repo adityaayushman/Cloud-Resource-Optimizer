@@ -51,7 +51,16 @@ a few minutes and guarantees artifacts and code always match.
 
 ---
 
-## 3. Frontend — Vercel
+## 3. Frontend — Vercel (or Render)
+
+### Option A — Render static site (same Blueprint)
+
+`render.yaml` also defines `cloud-resource-optimizer-dashboard`, a static site
+built from `frontend/`. If the Blueprint is already connected, Render picks it
+up on the next sync — no second provider, no extra account. Its
+`VITE_API_BASE_URL` is already set to the API service.
+
+### Option B — Vercel
 
 1. https://vercel.com/new → import the `Cloud-Resource-Optimizer` repository
 2. **Root Directory:** `frontend` ← this matters; the repo is a monorepo
