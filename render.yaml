@@ -1,0 +1,36 @@
+# Render blueprint for the CloudOptima API.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> connect this repo.
+# Render reads this file from the repository root.
+#
+# The build step regenerates the dataset and trains every model artifact during
+# deployment rather than committing ~35 MB of .joblib files to git. That keeps
+# the repository clean and guarantees the deployed artifacts match the deployed
+# code - a stale committed model is a class of bug that is painful to diagnose.
+# Cost: roughly 4-6 minutes of build time.
+
+services:
+  - type: web
+    name: cloud-resource-optimizer-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: |
+      pip install --no-cache-dir -r requirements.txt
+      python scripts/generate_data.py --days 30 --interval 5 --seed 42
+      python scripts/train.py --no-tune --rl-episodes 12 --rl-ticks 288
+      python scripts/evaluate.py --ticks 288 --repeats 2
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      # Comma-separated list of allowed browser origins. Set this to the Vercel
+      # production URL once the frontend is deployed. Preview deployments on
+      # *.vercel.app are already permitted by a regex in app/main.py.
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"

@@ -1,0 +1,20 @@
+# Runtime dependencies for the CloudOptima API.
+#
+# Deliberately excluded:
+#   torch   - the DQN is implemented in NumPy (app/ml/dqn.py). The CPU-only
+#             torch wheel is ~800 MB installed and ~250 MB resident on import,
+#             which does not fit a 512 MB free-tier container.
+#   shap    - exact TreeSHAP comes from XGBoost's native `pred_contribs=True`,
+#             so the shap package and its numba/llvmlite chain are unnecessary.
+#   optuna  - hyperparameter search is a seeded random search over a validation
+#             block (app/ml/predictor.py::_search); one fewer dependency and it
+#             fixes the test-set tuning the original design had.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+xgboost==2.1.3
+joblib==1.4.2

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Environment
+.env
+.env.local
+!.env.example
+
+# Generated artifacts.
+# The dataset and trained models are rebuilt by the Render build command
+# (see render.yaml), so ~35 MB of .joblib files never enter git and a stale
+# committed model can never diverge from the deployed code.
+backend/data/*.csv
+backend/artifacts/*.joblib
+backend/artifacts/*.log
+
+# Keep the evaluation outputs: they are small, and the report cites them.
+!backend/artifacts/training_report.json
+!backend/artifacts/ablation.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+ok
+
+# Local tooling config
+.claude/

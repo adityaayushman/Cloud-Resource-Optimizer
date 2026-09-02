@@ -1,0 +1,170 @@
+{
+  "generated_at": "2026-09-02T21:16:20",
+  "protocol": {
+    "seeds": [
+      7,
+      42,
+      99
+    ],
+    "days": 30,
+    "interval_minutes": 5,
+    "horizons": [
+      1,
+      3,
+      6,
+      12
+    ],
+    "note": "Margin is model R2 minus persistence-baseline R2 on the held-out test block, averaged over seeds. Positive means the learned model beats 'next interval equals this one'."
+  },
+  "rows": [
+    {
+      "horizon_intervals": 1,
+      "horizon_minutes": 5,
+      "algo": "xgboost",
+      "model_r2_mean": 0.9284,
+      "persistence_r2_mean": 0.9293,
+      "margin_mean": -0.0009,
+      "margin_sd": 0.0052,
+      "mae_mean": 1.5242,
+      "wins": 1,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 1,
+      "horizon_minutes": 5,
+      "algo": "rf",
+      "model_r2_mean": 0.915,
+      "persistence_r2_mean": 0.9293,
+      "margin_mean": -0.0143,
+      "margin_sd": 0.0156,
+      "mae_mean": 1.6104,
+      "wins": 0,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 1,
+      "horizon_minutes": 5,
+      "algo": "lr",
+      "model_r2_mean": 0.9318,
+      "persistence_r2_mean": 0.9293,
+      "margin_mean": 0.0026,
+      "margin_sd": 0.0103,
+      "mae_mean": 1.4694,
+      "wins": 2,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 3,
+      "horizon_minutes": 15,
+      "algo": "xgboost",
+      "model_r2_mean": 0.9029,
+      "persistence_r2_mean": 0.8921,
+      "margin_mean": 0.0108,
+      "margin_sd": 0.0053,
+      "mae_mean": 1.8124,
+      "wins": 3,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 3,
+      "horizon_minutes": 15,
+      "algo": "rf",
+      "model_r2_mean": 0.8964,
+      "persistence_r2_mean": 0.8921,
+      "margin_mean": 0.0042,
+      "margin_sd": 0.0088,
+      "mae_mean": 1.8169,
+      "wins": 2,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 3,
+      "horizon_minutes": 15,
+      "algo": "lr",
+      "model_r2_mean": 0.9028,
+      "persistence_r2_mean": 0.8921,
+      "margin_mean": 0.0106,
+      "margin_sd": 0.0116,
+      "mae_mean": 1.6963,
+      "wins": 2,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 6,
+      "horizon_minutes": 30,
+      "algo": "xgboost",
+      "model_r2_mean": 0.8862,
+      "persistence_r2_mean": 0.8459,
+      "margin_mean": 0.0403,
+      "margin_sd": 0.0136,
+      "mae_mean": 1.9741,
+      "wins": 3,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 6,
+      "horizon_minutes": 30,
+      "algo": "rf",
+      "model_r2_mean": 0.8704,
+      "persistence_r2_mean": 0.8459,
+      "margin_mean": 0.0245,
+      "margin_sd": 0.0299,
+      "mae_mean": 2.0461,
+      "wins": 2,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 6,
+      "horizon_minutes": 30,
+      "algo": "lr",
+      "model_r2_mean": 0.8645,
+      "persistence_r2_mean": 0.8459,
+      "margin_mean": 0.0186,
+      "margin_sd": 0.0166,
+      "mae_mean": 2.0131,
+      "wins": 2,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 12,
+      "horizon_minutes": 60,
+      "algo": "xgboost",
+      "model_r2_mean": 0.8977,
+      "persistence_r2_mean": 0.7487,
+      "margin_mean": 0.149,
+      "margin_sd": 0.0221,
+      "mae_mean": 1.8814,
+      "wins": 3,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 12,
+      "horizon_minutes": 60,
+      "algo": "rf",
+      "model_r2_mean": 0.89,
+      "persistence_r2_mean": 0.7487,
+      "margin_mean": 0.1413,
+      "margin_sd": 0.0348,
+      "mae_mean": 1.8987,
+      "wins": 3,
+      "seeds": 3
+    },
+    {
+      "horizon_intervals": 12,
+      "horizon_minutes": 60,
+      "algo": "lr",
+      "model_r2_mean": 0.7888,
+      "persistence_r2_mean": 0.7487,
+      "margin_mean": 0.0401,
+      "margin_sd": 0.043,
+      "mae_mean": 2.551,
+      "wins": 2,
+      "seeds": 3
+    }
+  ],
+  "conclusion": {
+    "breakeven_horizon_minutes": 15,
+    "summary": "The forecaster's advantage over persistence grows with horizon. At one interval ahead the series is autocorrelated enough that persistence is competitive; the learned model separates clearly once it has to see further than the autocorrelation reaches."
+  },
+  "elapsed_seconds": 1063.48
+}

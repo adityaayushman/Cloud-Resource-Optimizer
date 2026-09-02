@@ -1,0 +1,96 @@
+{
+  "algo": "xgboost",
+  "features": [
+    "num_tasks",
+    "cpu_per_task",
+    "ram_per_task",
+    "hour_sin",
+    "hour_cos",
+    "day_of_week",
+    "is_weekend",
+    "cpu_lag_1",
+    "cpu_lag_4",
+    "cpu_rolling_mean_4",
+    "cpu_rolling_std_8",
+    "ram_lag_1"
+  ],
+  "metrics": {
+    "algo": "xgboost",
+    "horizon": 1,
+    "n_train": 6044,
+    "n_val": 1295,
+    "n_test": 1296,
+    "targets": {
+      "cpu_demand_t+1": {
+        "validation": {
+          "r2": 0.87795,
+          "mae": 1.94425,
+          "rmse": 3.11874,
+          "mape": 9.41888
+        },
+        "test": {
+          "r2": 0.94154,
+          "mae": 1.70651,
+          "rmse": 2.47563,
+          "mape": 12.49154
+        },
+        "naive_persistence_test": {
+          "r2": 0.92828,
+          "mae": 1.89863,
+          "rmse": 2.74202,
+          "mape": 13.15624
+        }
+      },
+      "ram_demand_t+1": {
+        "validation": {
+          "r2": 0.90412,
+          "mae": 4.16471,
+          "rmse": 6.67472,
+          "mape": 9.73448
+        },
+        "test": {
+          "r2": 0.92865,
+          "mae": 2.84729,
+          "rmse": 4.19195,
+          "mape": 14.0227
+        },
+        "naive_persistence_test": {
+          "r2": 0.91612,
+          "mae": 3.00754,
+          "rmse": 4.54515,
+          "mape": 14.305
+        }
+      }
+    },
+    "best_params": {
+      "n_estimators": 325,
+      "max_depth": 4,
+      "learning_rate": 0.07871875155333673,
+      "subsample": 0.8816707801544132,
+      "colsample_bytree": 0.8449612533194475,
+      "reg_lambda": 3.243643731872447
+    }
+  },
+  "best_params": {
+    "n_estimators": 325,
+    "max_depth": 4,
+    "learning_rate": 0.07871875155333673,
+    "subsample": 0.8816707801544132,
+    "colsample_bytree": 0.8449612533194475,
+    "reg_lambda": 3.243643731872447
+  },
+  "feature_means": [
+    30.296782925215087,
+    0.3777392951687624,
+    1.0722501158173396,
+    0.0,
+    -0.0006618133686301087,
+    3.0019854401058903,
+    0.28590337524818,
+    11.610671740569158,
+    11.609127564526803,
+    11.610096500661813,
+    1.2048864122522134,
+    33.15678656518862
+  ]
+}

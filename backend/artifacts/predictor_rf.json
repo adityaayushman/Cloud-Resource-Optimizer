@@ -1,0 +1,92 @@
+{
+  "algo": "rf",
+  "features": [
+    "num_tasks",
+    "cpu_per_task",
+    "ram_per_task",
+    "hour_sin",
+    "hour_cos",
+    "day_of_week",
+    "is_weekend",
+    "cpu_lag_1",
+    "cpu_lag_4",
+    "cpu_rolling_mean_4",
+    "cpu_rolling_std_8",
+    "ram_lag_1"
+  ],
+  "metrics": {
+    "algo": "rf",
+    "horizon": 1,
+    "n_train": 6044,
+    "n_val": 1295,
+    "n_test": 1296,
+    "targets": {
+      "cpu_demand_t+1": {
+        "validation": {
+          "r2": 0.85987,
+          "mae": 2.00499,
+          "rmse": 3.34165,
+          "mape": 9.83954
+        },
+        "test": {
+          "r2": 0.92911,
+          "mae": 1.84492,
+          "rmse": 2.72611,
+          "mape": 12.85761
+        },
+        "naive_persistence_test": {
+          "r2": 0.92828,
+          "mae": 1.89863,
+          "rmse": 2.74202,
+          "mape": 13.15624
+        }
+      },
+      "ram_demand_t+1": {
+        "validation": {
+          "r2": 0.88062,
+          "mae": 4.58923,
+          "rmse": 7.44774,
+          "mape": 10.87777
+        },
+        "test": {
+          "r2": 0.91079,
+          "mae": 3.20313,
+          "rmse": 4.68728,
+          "mape": 16.76148
+        },
+        "naive_persistence_test": {
+          "r2": 0.91612,
+          "mae": 3.00754,
+          "rmse": 4.54515,
+          "mape": 14.305
+        }
+      }
+    },
+    "best_params": {
+      "n_estimators": 210,
+      "max_depth": 11,
+      "min_samples_leaf": 2,
+      "max_features": 0.7863190720483988
+    }
+  },
+  "best_params": {
+    "n_estimators": 210,
+    "max_depth": 11,
+    "min_samples_leaf": 2,
+    "max_features": 0.7863190720483988
+  },
+  "feature_means": [
+    30.296782925215087,
+    0.3777392951687624,
+    1.0722501158173396,
+    0.0,
+    -0.0006618133686301087,
+    3.0019854401058903,
+    0.28590337524818,
+    11.610671740569158,
+    11.609127564526803,
+    11.610096500661813,
+    1.2048864122522134,
+    33.15678656518862
+  ]
+}
