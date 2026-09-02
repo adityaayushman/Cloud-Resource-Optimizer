@@ -5,12 +5,6 @@ import { BarChart, LineChart, StatTile } from '../components/charts'
 const delta = (v) => (v === null || v === undefined ? '—'
   : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`)
 
-const deltaColor = (v, goodIsUp) => {
-  if (v === null || v === undefined || Math.abs(v) < 0.05) return 'var(--text-muted)'
-  const good = goodIsUp ? v > 0 : v < 0
-  return good ? '#7ee787' : '#ff9a9a'
-}
-
 export default function Results({ session }) {
   const [ablation, setAblation] = useState(null)
   const [rl, setRl] = useState(null)
@@ -181,16 +175,24 @@ export default function Results({ session }) {
             <>
               <LineChart
                 data={curveData} xKey="ep" height={230}
-                series={[{ key: 'reward', label: 'Mean episode reward', color: 'var(--series-1)' }]}
+                series={[{ key: 'reward', label: 'Held-out evaluation reward', color: 'var(--series-1)' }]}
                 xFormat={(v) => `ep ${v}`}
                 valueFormat={(v) => Number(v).toFixed(2)}
               />
               <p className="panel-note">
-                Mean reward per training episode. First quarter{' '}
-                <span className="mono">{training.rl.first_quarter_mean?.toFixed(3)}</span>,
-                last quarter <span className="mono">{training.rl.last_quarter_mean?.toFixed(3)}</span>
-                {' '}(improvement {training.rl.improvement?.toFixed(3)}) over{' '}
+                Greedy evaluation on one fixed held-out seed
+                ({training.rl.eval_seed}), measured during training. Untrained{' '}
+                <span className="mono">{training.rl.before?.reward?.toFixed(3)}</span>
+                {' '}→ selected checkpoint{' '}
+                <span className="mono">{training.rl.after?.reward?.toFixed(3)}</span>
+                {' '}(episode {training.rl.selected_episode}) over{' '}
                 {training.rl.learn_steps?.toLocaleString()} gradient steps.
+                Utilisation {training.rl.before?.utilisation?.toFixed(1)}% →{' '}
+                {training.rl.after?.utilisation?.toFixed(1)}%, cost $
+                {training.rl.before?.cost_per_day?.toFixed(2)} → $
+                {training.rl.after?.cost_per_day?.toFixed(2)}/day.
+                Training is not monotone, so the deployed agent is the
+                best-scoring checkpoint rather than the final weights.
               </p>
             </>
           ) : <p className="panel-note">No RL training report available.</p>}
