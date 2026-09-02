@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, apiBase, ApiError, wakeUp } from './lib/api'
+import { api, ApiError, getApiBase, wakeUp } from './lib/api'
 import Ignition from './components/Ignition'
 import CommandCenter from './pages/CommandCenter'
 import Prediction from './pages/Prediction'
@@ -93,10 +93,7 @@ export default function App() {
 
   if (!online) {
     return (
-      <Ignition
-        onIgnite={ignite} booting={booting} lines={bootLines}
-        error={error} apiBase={apiBase}
-      />
+      <Ignition onIgnite={ignite} booting={booting} lines={bootLines} error={error} />
     )
   }
 
@@ -123,6 +120,9 @@ export default function App() {
 
         <div style={{ marginLeft: 'auto' }} className="btn-row">
           {busy && <span className="spinner" aria-label="Working" />}
+          <span className="tag" title={getApiBase()}>
+            {getApiBase().replace(/^https?:\/\//, '').slice(0, 30)}
+          </span>
           <span className={`tag ${health?.artifacts_ready ? 'tag-ok' : 'tag-warn'}`}>
             {health?.artifacts_ready ? 'models ready' : 'degraded'}
           </span>
