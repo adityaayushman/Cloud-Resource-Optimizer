@@ -1,5 +1,11 @@
 # Notes for the written report
 
+> **Drafts now available:**
+> - `docs/CHAPTER-4-REPLACEMENT.md` — full replacement Chapter 4 with measured
+>   numbers, every figure cross-checked against `backend/artifacts/`.
+> - `docs/REFERENCES.md` — corrected reference list where every entry is cited
+>   and every method used has its source, plus a citation-placement table.
+
 This file maps the implementation onto the project report and the conference
 paper, and flags the places where the two must be brought into agreement before
 submission. It exists because several claims in the current report are not
