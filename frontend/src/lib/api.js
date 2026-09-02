@@ -9,7 +9,54 @@
  *    (e.g. "Model is not trained. Run scripts/train.py").
  */
 
-const BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
+/* Resolving the API base URL.
+ *
+ * Vite inlines `VITE_*` variables at BUILD time, so a deployed bundle has its
+ * endpoint frozen in. That is awkward here: the dashboard is deployed before
+ * the API is, and pointing it at a backend would otherwise mean a rebuild.
+ *
+ * Resolution order, first match wins:
+ *   1. ?api=<url>            - shareable link to a specific backend
+ *   2. localStorage override - what the user typed on the ignition screen
+ *   3. VITE_API_BASE_URL     - build-time default (local dev, CI)
+ *   4. same-origin :8000     - sensible guess when developing locally
+ */
+const STORAGE_KEY = 'cloudoptima.apiBaseUrl'
+
+function readStored() {
+  try { return localStorage.getItem(STORAGE_KEY) } catch { return null }
+}
+
+function resolveBase() {
+  let fromQuery = null
+  try {
+    fromQuery = new URLSearchParams(window.location.search).get('api')
+  } catch { /* non-browser context */ }
+
+  if (fromQuery) {
+    try { localStorage.setItem(STORAGE_KEY, fromQuery) } catch { /* private mode */ }
+    return fromQuery
+  }
+  return readStored()
+    || import.meta.env.VITE_API_BASE_URL
+    || `${window.location.protocol}//${window.location.hostname}:8000`
+}
+
+let BASE = resolveBase().replace(/\/$/, '')
+
+export function getApiBase() { return BASE }
+
+export function setApiBase(url) {
+  BASE = String(url || '').trim().replace(/\/$/, '')
+  try { localStorage.setItem(STORAGE_KEY, BASE) } catch { /* private mode */ }
+  return BASE
+}
+
+export function clearApiBase() {
+  try { localStorage.removeItem(STORAGE_KEY) } catch { /* private mode */ }
+  BASE = resolveBase().replace(/\/$/, '')
+  return BASE
+}
 
 export class ApiError extends Error {
   constructor(message, status, payload) {
@@ -24,7 +71,7 @@ async function request(path, { method = 'GET', body, timeout = 90000 } = {}) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${getApiBase()}${path}`, {
       method,
       headers: body ? { 'Content-Type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -47,7 +94,7 @@ async function request(path, { method = 'GET', body, timeout = 90000 } = {}) {
     }
     if (err instanceof ApiError) throw err
     throw new ApiError(
-      `Cannot reach the API at ${BASE}. Check VITE_API_BASE_URL and that the backend is running.`,
+      `Cannot reach the API at ${getApiBase()}.`,
       0, null,
     )
   } finally {
@@ -55,7 +102,6 @@ async function request(path, { method = 'GET', body, timeout = 90000 } = {}) {
   }
 }
 
-export const apiBase = BASE
 
 export const api = {
   health: () => request('/api/health'),
