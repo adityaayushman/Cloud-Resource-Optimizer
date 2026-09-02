@@ -49,7 +49,7 @@ class InjectRequest(BaseModel):
 
 
 class ScaleRequest(BaseModel):
-    instance_type: Literal["small", "medium", "large"] = "medium"
+    instance_type: Literal["small", "medium", "large", "memory", "xlarge"] = "medium"
     count: int = Field(1, ge=1, le=20)
     provider: Optional[Literal["AWS", "Azure", "GCP"]] = None
 
@@ -65,7 +65,7 @@ class AblationRequest(BaseModel):
 
 
 class ProviderQuery(BaseModel):
-    instance_type: Literal["small", "medium", "large"] = "medium"
+    instance_type: Literal["small", "medium", "large", "memory", "xlarge"] = "medium"
     region: Literal["US-East", "EU-West", "Asia-South"] = "US-East"
     weight_cost: float = Field(0.55, ge=0, le=1)
     weight_latency: float = Field(0.25, ge=0, le=1)

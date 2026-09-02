@@ -309,3 +309,32 @@ def test_no_advisory_noise_on_a_well_sized_fleet():
     alloc = make_allocator(3)
     advisory = AdvisoryEngine(alloc).generate(predicted_cpu=7.0, predicted_ram=14.0)
     assert not any(w["type"] in ("CAPACITY_CRUNCH", "BUDGET_LEAK") for w in advisory.warnings)
+
+
+# ------------------------------------------------- real-trace replay support
+
+def test_fleet_cap_is_per_allocator_not_global():
+    """A production trace needs a larger ceiling than a small synthetic fleet."""
+    small = ResourceAllocator(multi_cloud=False, max_fleet=3)
+    for _ in range(10):
+        small.add_vm(InstanceType.SMALL, provider=CloudProvider.AWS)
+    assert len(small.vms) == 3
+
+    big = ResourceAllocator(multi_cloud=False, max_fleet=25)
+    for _ in range(40):
+        big.add_vm(InstanceType.SMALL, provider=CloudProvider.AWS)
+    assert len(big.vms) == 25
+
+
+def test_xlarge_is_selected_for_a_large_compute_deficit():
+    assert pick_instance_type(40.0, 80.0) is InstanceType.XLARGE
+    assert INSTANCE_SPECS[InstanceType.XLARGE].cpu == 16
+
+
+def test_action_respects_a_raised_cap():
+    alloc = ResourceAllocator(multi_cloud=False, max_fleet=60)
+    alloc.add_vm(InstanceType.MEDIUM, provider=CloudProvider.AWS)
+    apply_action(alloc, 4, predicted_cpu=250.0, predicted_ram=320.0)
+    cap = sum(v.cpu_capacity for v in alloc.vms)
+    assert cap >= 250.0, f"only provisioned {cap} cores for a 250-core forecast"
+    assert len(alloc.vms) <= 60

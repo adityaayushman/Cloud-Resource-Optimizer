@@ -28,6 +28,10 @@ class InstanceType(str, Enum):
     # strands roughly 17% of its CPU behind exhausted memory. Mixing in a 4.0
     # ratio node lets the fleet match the workload shape.
     MEMORY = "memory"
+    # Compute-dense node. Needed once the workload is a real datacentre trace:
+    # the Bitbrains fleet peaks near 300 cores, which the 8-core LARGE cannot
+    # serve without a fleet larger than any real operator would run.
+    XLARGE = "xlarge"
 
 
 class TaskStatus(str, Enum):

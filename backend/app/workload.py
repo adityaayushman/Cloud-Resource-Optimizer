@@ -182,3 +182,77 @@ def build_dataset(days: int = 90, seed: int = 42, interval_minutes: int = 15) ->
     gen = WorkloadGenerator(cfg, seed=seed)
     intervals = int(days * 24 * 60 / interval_minutes)
     return gen.generate(intervals)
+
+
+# ---------------------------------------------------------------------------
+# Real-trace replay
+# ---------------------------------------------------------------------------
+
+class TraceSource:
+    """Replays a recorded workload trace with the same interface as the generator.
+
+    Lets the evaluation harness run identically on synthetic data - where the
+    structure is known and controllable - and on a real production trace, where
+    it is not. `WorkloadGenerator` and `TraceSource` both expose `step()`
+    returning the same record shape, so no strategy code changes.
+
+    **Seeding.** A recorded trace has no randomness, so repeated runs on it
+    would be identical and a multi-seed study would report a standard deviation
+    of zero, which is meaningless. Each seed therefore starts at a different
+    offset in the trace, giving genuinely different demand windows in the same
+    way different synthetic seeds give different traces. The offset is drawn
+    deterministically from the seed, so runs stay reproducible.
+    """
+
+    REQUIRED = ("cpu_demand", "ram_demand", "num_tasks",
+                "cpu_per_task", "ram_per_task", "hour", "day_of_week")
+
+    def __init__(self, path, seed: int = 42, ticks_needed: int = 288,
+                 random_start: bool = True):
+        import pandas as pd
+
+        self.path = str(path)
+        df = pd.read_csv(self.path)
+        missing = [c for c in self.REQUIRED if c not in df.columns]
+        if missing:
+            raise ValueError(f"trace {self.path} is missing columns: {missing}")
+        self.frame = df.reset_index(drop=True)
+
+        span = len(self.frame)
+        if span < ticks_needed:
+            raise ValueError(
+                f"trace has {span} rows but {ticks_needed} ticks were requested"
+            )
+
+        if random_start and span > ticks_needed:
+            rng = np.random.default_rng(seed)
+            self.start = int(rng.integers(0, span - ticks_needed))
+        else:
+            self.start = 0
+        self.t = 0
+
+    @property
+    def rows(self) -> int:
+        return len(self.frame)
+
+    def step(self) -> dict:
+        idx = (self.start + self.t) % len(self.frame)
+        row = self.frame.iloc[idx]
+        self.t += 1
+        return {
+            "interval": self.t - 1,
+            "minutes": (self.t - 1) * 5,
+            "hour": int(row["hour"]),
+            "day_of_week": int(row["day_of_week"]),
+            "is_weekend": int(row.get("is_weekend", int(row["day_of_week"]) >= 5)),
+            "num_tasks": float(row["num_tasks"]),
+            "cpu_per_task": float(row["cpu_per_task"]),
+            "ram_per_task": float(row["ram_per_task"]),
+            "cpu_demand": float(row["cpu_demand"]),
+            "ram_demand": float(row["ram_demand"]),
+            "burst_active": int(row.get("burst_active", 0)),
+            "burst_onset": int(row.get("burst_onset", 0)),
+        }
+
+    def generate(self, intervals: int) -> list[dict]:
+        return [self.step() for _ in range(intervals)]

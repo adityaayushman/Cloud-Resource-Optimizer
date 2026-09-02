@@ -26,6 +26,7 @@ import numpy as np
 
 from .catalog import INSTANCE_SPECS
 from .engine import (
+    MAX_FLEET,
     MIN_FLEET,
     SLA_CRITICAL_UTILISATION,
     AutoScaler,
@@ -36,7 +37,7 @@ from .engine import (
     compute_reward,
 )
 from .models import CloudProvider, InstanceType, Region, Task
-from .workload import WorkloadConfig, WorkloadGenerator
+from .workload import TraceSource, WorkloadConfig, WorkloadGenerator
 
 TICK_SECONDS = 300.0        # 5-minute autoscaler evaluation period
 VM_BOOT_SECONDS = 45.0      # modelled instance provisioning time
@@ -48,10 +49,18 @@ VM_BOOT_SECONDS = 45.0      # modelled instance provisioning time
 # under-provisions by a factor of N regardless of how good the forecast is.
 TASK_DURATION_SECONDS = TICK_SECONDS
 
-# A fixed fleet is sized the way an operator would size one without autoscaling:
-# to comfortably cover mean demand, accepting that peaks will be dropped.
-STATIC_FLEET_SIZE = 5
-DEFAULT_FLEET_SIZE = 3
+# Initial fleets are expressed as a *multiple of mean demand*, not a node count,
+# so the same harness works on a 15-core synthetic workload and a 136-core
+# production trace. A fixed count would leave the static arm serving 4% of the
+# real trace's demand, which measures the fleet size rather than the policy.
+#
+# The static arm is sized the way an operator would size one without
+# autoscaling: comfortably above mean demand, accepting that peaks are dropped.
+# The adaptive arms start deliberately small so their scaling behaviour is what
+# is being measured.
+STATIC_FLEET_HEADROOM = 1.35
+ADAPTIVE_START_HEADROOM = 0.30
+SYNTHETIC_REFERENCE_CPU = 14.7   # mean cpu_demand of the synthetic generator
 
 # Nominal size of one task, in CPU cores. Interval demand is divided into tasks
 # of roughly this size.
@@ -151,7 +160,14 @@ class SimulationHarness:
         artifacts_dir=None,
         seed: int = 42,
         interval_minutes: int = 5,
+        trace_path=None,
+        max_fleet: int = MAX_FLEET,
     ):
+        # When `trace_path` is set the harness replays a recorded production
+        # trace instead of the synthetic generator. Every strategy, metric and
+        # reward is untouched, so the two evaluations are directly comparable.
+        self.trace_path = trace_path
+        self.max_fleet = max_fleet
         self.predictor_algo = predictor_algo
         self.anomaly_method = anomaly_method
         self.artifacts_dir = artifacts_dir
@@ -161,6 +177,18 @@ class SimulationHarness:
         # accumulates over episodes instead of resetting every time.
         self.shared_dqn = None
         self.shared_qagent = None
+
+        # Reference scale, used to size initial fleets proportionally.
+        self.reference_cpu = SYNTHETIC_REFERENCE_CPU
+        self.reference_ratio = 2.4
+        if trace_path:
+            import pandas as pd
+
+            head = pd.read_csv(trace_path, usecols=["cpu_demand", "ram_demand"])
+            self.reference_cpu = float(head["cpu_demand"].mean())
+            self.reference_ratio = float(
+                head["ram_demand"].mean() / max(head["cpu_demand"].mean(), 1e-9)
+            )
 
     def use_shared_agents(self, dqn=None, qagent=None) -> None:
         if dqn is not None:
@@ -179,15 +207,27 @@ class SimulationHarness:
             region=Region.US_EAST,
             multi_cloud=multi_cloud,
             seed=seed,
+            max_fleet=self.max_fleet,
         )
         if self.shared_dqn is not None:
             alloc.dqn_agent = self.shared_dqn
-        size = STATIC_FLEET_SIZE if strategy == "static_rules" else DEFAULT_FLEET_SIZE
-        for _ in range(size):
-            alloc.add_vm(
-                InstanceType.MEDIUM,
-                provider=None if multi_cloud else CloudProvider.AWS,
-            )
+        headroom = (STATIC_FLEET_HEADROOM if strategy == "static_rules"
+                    else ADAPTIVE_START_HEADROOM)
+        target_cpu = max(4.0, self.reference_cpu * headroom)
+        target_ram = target_cpu * self.reference_ratio
+
+        from .engine import pick_instance_type
+
+        cap_cpu = cap_ram = 0.0
+        guard = 0
+        while (cap_cpu < target_cpu or cap_ram < target_ram) and guard < self.max_fleet:
+            guard += 1
+            kind = pick_instance_type(target_cpu - cap_cpu, target_ram - cap_ram)
+            vm = alloc.add_vm(kind, provider=None if multi_cloud else CloudProvider.AWS)
+            if vm is None:
+                break
+            cap_cpu += vm.cpu_capacity
+            cap_ram += vm.ram_capacity
         return alloc
 
     # -- main loop -------------------------------------------------------
@@ -203,9 +243,12 @@ class SimulationHarness:
     ) -> RunResult:
         seed = self.seed if seed is None else seed
         alloc = self._new_allocator(strategy, seed)
-        gen = WorkloadGenerator(
-            WorkloadConfig(interval_minutes=self.interval_minutes), seed=seed
-        )
+        if self.trace_path:
+            gen = TraceSource(self.trace_path, seed=seed, ticks_needed=ticks)
+        else:
+            gen = WorkloadGenerator(
+                WorkloadConfig(interval_minutes=self.interval_minutes), seed=seed
+            )
 
         uses_prediction = strategy in (
             "ml_predictive", "multicloud_only", "q_learning", "rl_only", "full"

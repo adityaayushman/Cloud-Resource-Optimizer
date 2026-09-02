@@ -91,6 +91,26 @@ control policies run against an **identical** workload trace per seed; only the
 policy varies. See `docs/RESULTS.md` for the full table and `artifacts/ablation.json`
 for the raw output.
 
+### Validated on a real production trace
+
+The synthetic results below are reproduced on **Bitbrains GWA-T-12** — 300 real
+VMs from a production datacentre, 5-minute sampling, 30 days
+(`scripts/fetch_bitbrains.py`). Full study: [docs/RESULTS-REAL-TRACE.md](docs/RESULTS-REAL-TRACE.md).
+
+| | Synthetic | Real trace |
+|---|---|---|
+| Utilisation gain vs baseline | +28.7% | **+53.0%** |
+| Cost reduction vs baseline | −33.6% | **−42.2%** |
+| Task failure rate | 1.37% | **0.95%** |
+| Multi-cloud cost saving | −12.8% | −14.3% |
+
+**The RL result strengthens on real data. The forecasting result does not
+survive it.** On production telemetry no tree ensemble beats a persistence
+baseline at any horizon, and the deficit *grows* with horizon — the exact
+opposite of the synthetic trend. The synthetic conclusion was an artefact of
+structure the generator put in the data. That negative result is reported rather
+than buried, and it is the clearest argument for validating on real traces.
+
 ### Ablation — 7 policies × 3 seeds × 24 h, identical trace per seed
 
 | Configuration | Utilisation | Cost $/day | Latency | Fail % |
