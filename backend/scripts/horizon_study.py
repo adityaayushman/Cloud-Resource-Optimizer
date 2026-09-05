@@ -34,6 +34,39 @@ HORIZONS = [1, 3, 6, 12]
 ALGOS = ["xgboost", "rf", "lr"]
 
 
+def summarise(results: list[dict], breakeven: int | None) -> str:
+    """Describe what the numbers actually show.
+
+    An earlier version wrote a fixed sentence asserting that the forecaster's
+    advantage grows with horizon. That was true of the synthetic workload it was
+    written against and false on Bitbrains, where the deficit grows instead - so
+    the file cheerfully contradicted the table printed directly above it. The
+    summary is derived from the rows now.
+    """
+    xgb = sorted((r for r in results if r["algo"] == "xgboost"),
+                 key=lambda r: r["horizon_intervals"])
+    if not xgb:
+        return "No results."
+
+    first, last = xgb[0]["margin_mean"], xgb[-1]["margin_mean"]
+    trend = ("grows with horizon" if last > first + 0.01
+             else "shrinks with horizon" if last < first - 0.01
+             else "is flat across horizons")
+
+    if breakeven is not None:
+        stance = (f"XGBoost beats persistence on every seed from {breakeven} minutes "
+                  f"ahead onward")
+    elif all(r["margin_mean"] < 0 for r in xgb):
+        stance = ("XGBoost does not beat persistence at any horizon tested, and is "
+                  "behind it on average everywhere")
+    else:
+        stance = ("XGBoost beats persistence on some seeds but not on all of them at "
+                  "any horizon tested")
+
+    return (f"{stance}. Its margin over the baseline {trend} "
+            f"({first:+.4f} at the shortest horizon, {last:+.4f} at the longest).")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, nargs="+", default=[7, 42, 99])
@@ -104,6 +137,7 @@ def main() -> int:
     predictor_module.HORIZON = original_horizon
 
     xgb = [r for r in results if r["algo"] == "xgboost"]
+    breakeven = next((r["horizon_minutes"] for r in xgb if r["wins"] == r["seeds"]), None)
     payload = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "protocol": {
@@ -121,14 +155,14 @@ def main() -> int:
         },
         "rows": results,
         "conclusion": {
-            "breakeven_horizon_minutes": next(
-                (r["horizon_minutes"] for r in xgb if r["wins"] == r["seeds"]), None
-            ),
-            "summary": (
-                "The forecaster's advantage over persistence grows with horizon. "
-                "At one interval ahead the series is autocorrelated enough that "
-                "persistence is competitive; the learned model separates clearly "
-                "once it has to see further than the autocorrelation reaches."
+            "breakeven_horizon_minutes": breakeven,
+            "summary": summarise(results, breakeven),
+            "caveat": (
+                "Descriptive only. Seeds here are overlapping windows of one "
+                "workload and no significance test is applied, so a small margin "
+                "is not evidence. scripts/cross_dataset_study.py answers the same "
+                "question across five workloads with disjoint test blocks, a "
+                "Wilcoxon signed-rank test and Holm-Bonferroni correction."
             ),
         },
         "elapsed_seconds": round(time.time() - started, 2),
@@ -138,8 +172,9 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"Wrote {out} in {payload['elapsed_seconds']}s")
-    print(f"XGBoost first beats persistence on every seed at "
-          f"{payload['conclusion']['breakeven_horizon_minutes']} minutes ahead.")
+    # Printing "first beats persistence at None minutes" was the visible symptom
+    # of the summary being asserted rather than derived.
+    print(payload["conclusion"]["summary"])
     return 0
 
 

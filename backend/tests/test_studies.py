@@ -37,6 +37,7 @@ def _load(name: str):
 
 fetch_trace = _load("fetch_trace")
 study = _load("cross_dataset_study")
+horizon_study = _load("horizon_study")
 
 
 # --------------------------------------------------------------- adapters
@@ -259,6 +260,42 @@ def test_verdict_is_no_difference_when_the_test_was_not_run():
 def test_verdict_calls_persistence_when_the_model_is_significantly_worse():
     assert study.classify(
         {"mae_ratio_median": 1.53, "p_mae_holm": 1e-6}) == "persistence"
+
+
+# -------------------------------------------------- horizon-study reporting
+
+def _cell(h, margin, wins):
+    return {"horizon_intervals": h, "horizon_minutes": h * 5, "algo": "xgboost",
+            "margin_mean": margin, "wins": wins, "seeds": 3}
+
+
+def test_horizon_summary_reports_a_loss_as_a_loss():
+    """The summary used to be a fixed sentence asserting the forecaster's
+    advantage grows with horizon. On Bitbrains the deficit grows instead, so the
+    JSON contradicted the table printed directly above it."""
+    losing = [_cell(1, -0.003, 1), _cell(3, -0.040, 0),
+              _cell(6, -0.062, 0), _cell(12, -0.059, 1)]
+    text = horizon_study.summarise(losing, None)
+    assert "does not beat persistence at any horizon" in text
+    assert "shrinks with horizon" in text
+
+
+def test_horizon_summary_reports_a_win_as_a_win():
+    winning = [_cell(1, -0.001, 1), _cell(3, 0.011, 3),
+               _cell(6, 0.040, 3), _cell(12, 0.149, 3)]
+    text = horizon_study.summarise(winning, 15)
+    assert "from 15 minutes ahead onward" in text
+    assert "grows with horizon" in text
+
+
+def test_horizon_summary_distinguishes_partial_wins_from_none():
+    partial = [_cell(1, 0.004, 2), _cell(12, 0.006, 2)]
+    text = horizon_study.summarise(partial, None)
+    assert "some seeds but not on all" in text
+
+
+def test_horizon_summary_survives_empty_results():
+    assert horizon_study.summarise([], None) == "No results."
 
 
 # ------------------------------------------------- forecastability diagnostic
