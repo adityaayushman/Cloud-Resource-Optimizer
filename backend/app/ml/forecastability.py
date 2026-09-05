@@ -61,6 +61,25 @@ MODEL_LIKELY_HELPS_BELOW = -0.20
 # samples is one day.
 MIN_SAMPLES = 288
 
+# Which predictor the verdict implies, and why.
+#
+# The choice of `lr` rather than `xgboost` is the uncomfortable one, and it is
+# what the measurement says: across the four production traces, all seven
+# significant wins over persistence belong to linear regression, and neither tree
+# ensemble beat persistence on a real trace at *any* horizon. On Bitbrains the
+# ensembles lose by more than the linear model does. Mean reversion is linear
+# structure; trees split on local thresholds and extrapolate noise.
+#
+# `xgboost` remains the shipped default because it is what the system was built
+# and tuned around, and because it does win on the synthetic workload, whose
+# generator contains learnable step structure. This function is the honest
+# recommendation, not a silent override - see `docs/RESULTS-CROSS-DATASET.md`.
+RECOMMENDED_ALGO = {
+    "model_likely_helps": "lr",
+    "persistence_sufficient": "persistence",
+    "inconclusive": None,
+}
+
 
 def _autocorr(x: np.ndarray, lag: int) -> float:
     if len(x) <= lag + 1:
@@ -69,6 +88,37 @@ def _autocorr(x: np.ndarray, lag: int) -> float:
     if a.std() < 1e-12 or b.std() < 1e-12:
         return float("nan")
     return float(np.corrcoef(a, b)[0, 1])
+
+
+def _inconclusive(reason: str, samples: int) -> dict:
+    """Every return path carries the same keys, so callers need no special case."""
+    return {
+        "verdict": "inconclusive",
+        "reason": reason,
+        "recommended_algo": RECOMMENDED_ALGO["inconclusive"],
+        "recommendation_note": _recommendation_note("inconclusive"),
+        "samples": int(samples),
+    }
+
+
+def _recommendation_note(verdict: str) -> str:
+    if verdict == "model_likely_helps":
+        return (
+            "Linear regression, not a tree ensemble. Across four production "
+            "traces every significant win over persistence belonged to linear "
+            "regression, and neither XGBoost nor Random Forest beat persistence "
+            "on a real trace at any horizon. Mean reversion is linear structure."
+        )
+    if verdict == "persistence_sufficient":
+        return (
+            "Ship the persistence predictor (algo='persistence'). It needs no "
+            "training, no artifact and no retraining schedule, and on a workload "
+            "shaped like this one nothing measured has beaten it."
+        )
+    return (
+        "No recommendation. Train one model and compare its MAE against the "
+        "persistence baseline on held-out blocks before committing to a pipeline."
+    )
 
 
 def assess(cpu_demand: Sequence[float], interval_minutes: int = 5) -> dict:
@@ -87,24 +137,19 @@ def assess(cpu_demand: Sequence[float], interval_minutes: int = 5) -> dict:
     series = series[np.isfinite(series)]
 
     if len(series) < MIN_SAMPLES:
-        return {
-            "verdict": "inconclusive",
-            "reason": f"only {len(series)} samples; at least {MIN_SAMPLES} "
-                      f"({MIN_SAMPLES * interval_minutes / 60:.0f} h) are needed "
-                      f"before this statistic is stable",
-            "samples": int(len(series)),
-        }
+        return _inconclusive(
+            f"only {len(series)} samples; at least {MIN_SAMPLES} "
+            f"({MIN_SAMPLES * interval_minutes / 60:.0f} h) are needed before this "
+            f"statistic is stable", len(series))
 
     mean = float(series.mean())
     if mean <= 0:
-        return {"verdict": "inconclusive", "reason": "demand is zero or negative",
-                "samples": int(len(series))}
+        return _inconclusive("demand is zero or negative", len(series))
 
     diff = np.diff(series)
     diff_acf1 = _autocorr(diff, 1)
     if not np.isfinite(diff_acf1):
-        return {"verdict": "inconclusive", "reason": "demand is constant",
-                "samples": int(len(series))}
+        return _inconclusive("demand is constant", len(series))
 
     if diff_acf1 <= MODEL_LIKELY_HELPS_BELOW:
         verdict = "model_likely_helps"
@@ -137,6 +182,8 @@ def assess(cpu_demand: Sequence[float], interval_minutes: int = 5) -> dict:
     return {
         "verdict": verdict,
         "reason": reason,
+        "recommended_algo": RECOMMENDED_ALGO[verdict],
+        "recommendation_note": _recommendation_note(verdict),
         "diff_acf1": round(diff_acf1, 4),
         "level_acf1": round(_autocorr(series, 1), 4),
         "level_acf12": round(_autocorr(series, 12), 4),

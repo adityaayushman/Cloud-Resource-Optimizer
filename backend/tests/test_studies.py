@@ -421,6 +421,47 @@ def test_constant_and_degenerate_series_do_not_raise():
     assert assess(np.zeros(1_000))["verdict"] == "inconclusive"
 
 
+def test_recommendation_follows_the_verdict_and_is_always_present():
+    """Callers read `recommended_algo` on every path, including the refusals."""
+    from app.ml.forecastability import RECOMMENDED_ALGO
+
+    rng = np.random.default_rng(5)
+    walk = np.cumsum(rng.normal(size=6_000)) + 5_000.0
+    assert assess(walk)["recommended_algo"] == "persistence"
+
+    n = 6_000
+    reverting = np.empty(n)
+    reverting[0] = 100.0
+    for i in range(1, n):
+        reverting[i] = 100.0 + 0.3 * (reverting[i - 1] - 100.0) + rng.normal(scale=3.0)
+    assert assess(reverting)["recommended_algo"] == "lr"
+
+    short = assess(rng.normal(size=MIN_SAMPLES - 1) + 50.0)
+    assert short["recommended_algo"] is None
+    assert short["recommendation_note"]
+
+    for verdict, algo in RECOMMENDED_ALGO.items():
+        assert algo in (None, "lr", "persistence"), verdict
+
+
+def test_recommendation_never_names_a_tree_ensemble():
+    """The measurement is that neither ensemble beat persistence on any real
+    trace at any horizon. If a future calibration reverses that, this test should
+    be the thing that makes someone justify it."""
+    from app.ml.forecastability import RECOMMENDED_ALGO
+
+    assert not {"xgboost", "rf"} & set(RECOMMENDED_ALGO.values())
+
+
+def test_recommended_algos_are_all_buildable():
+    """A recommendation the system cannot act on is just a comment."""
+    from app.ml.forecastability import RECOMMENDED_ALGO
+    from app.ml.predictor import WorkloadPredictor
+
+    for algo in filter(None, RECOMMENDED_ALGO.values()):
+        assert WorkloadPredictor(algo)._make_model({}) is not None
+
+
 def test_verdict_is_invariant_to_rescaling():
     """Demand in cores or millicores must not change the answer."""
     rng = np.random.default_rng(4)

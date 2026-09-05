@@ -42,7 +42,10 @@ def _harness() -> SimulationHarness:
 
 def train_predictors(df: pd.DataFrame, tune: bool) -> dict:
     reports = {}
-    for algo in ("xgboost", "rf", "lr"):
+    # `persistence` is trained alongside the learned models, not just scored as a
+    # baseline, because the cross-dataset study found workloads where it is the
+    # right thing to deploy. It costs nothing to fit.
+    for algo in ("xgboost", "rf", "lr", "persistence"):
         t0 = time.time()
         print(f"\n=== Training predictor: {algo} ===")
         predictor = WorkloadPredictor(algo=algo)

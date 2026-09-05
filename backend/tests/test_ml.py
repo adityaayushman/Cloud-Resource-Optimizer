@@ -103,6 +103,55 @@ def test_predictor_is_competitive_with_persistence_at_one_step(production_frame)
     assert cpu["test"]["r2"] > persistence - 0.05
 
 
+def test_persistence_predictor_reproduces_the_reported_baseline(production_frame):
+    """`algo="persistence"` must score exactly what the report's baseline column
+    scores, or the system would be shipping something other than the thing the
+    cross-dataset study recommends on random-walk workloads.
+
+    The trap it must avoid is `cpu_lag_1`, which is demand at t-1 while the target
+    is t+1 - a two-step forecast wearing the name of a one-step one.
+    """
+    report = WorkloadPredictor("persistence").train(production_frame, tune=False)
+    cpu = report["targets"]["cpu_demand_t+1"]
+    baseline = cpu["naive_persistence_test"]
+
+    # The synthetic generator rounds num_tasks, so the reconstruction of current
+    # demand is exact only up to that rounding; on the production traces it agrees
+    # to 1e-13.
+    assert cpu["test"]["mae"] == pytest.approx(baseline["mae"], rel=0.05)
+    assert cpu["test"]["r2"] == pytest.approx(baseline["r2"], abs=0.01)
+
+
+def test_persistence_predictor_does_not_use_the_stale_lag_column():
+    """cpu_lag_1 is t-1. Using it would silently degrade the forecast."""
+    from app.ml.predictor import PersistenceRegressor
+
+    X = pd.DataFrame({
+        "num_tasks": [10.0, 20.0], "cpu_per_task": [2.0, 3.0],
+        "ram_per_task": [4.0, 5.0], "cpu_lag_1": [999.0, 999.0],
+        "ram_lag_1": [888.0, 888.0],
+    })
+    assert list(PersistenceRegressor("cpu").fit(X).predict(X)) == [20.0, 60.0]
+    assert list(PersistenceRegressor("ram").fit(X).predict(X)) == [40.0, 100.0]
+
+
+def test_persistence_predictor_round_trips_and_explains(tmp_path, frame):
+    predictor = WorkloadPredictor("persistence")
+    predictor.train(frame, tune=False)
+    predictor.save(tmp_path)
+
+    restored = WorkloadPredictor.load(tmp_path, "persistence")
+    probe = {f: 1.5 for f in restored.features}
+    probe.update(num_tasks=10.0, cpu_per_task=2.0)
+    assert restored.predict(probe)[0] == pytest.approx(20.0)
+
+    explanation = restored.explain(probe)
+    assert explanation["method"] == "identity-exact"
+    contributing = {c["feature"] for c in explanation["contributions"]
+                    if abs(c["contribution"]) > 1e-9}
+    assert contributing == {"num_tasks", "cpu_per_task"}
+
+
 def test_predictor_clearly_beats_persistence_at_a_longer_horizon(production_frame):
     """The forecaster earns its place once it must see past the autocorrelation.
 

@@ -6,7 +6,10 @@ const ALGOS = [
   { id: 'xgboost', label: 'XGBoost' },
   { id: 'rf', label: 'Random Forest' },
   { id: 'lr', label: 'Linear Regression' },
+  { id: 'persistence', label: 'Persistence' },
 ]
+
+const ALGO_LABEL = Object.fromEntries(ALGOS.map((a) => [a.id, a.label]))
 
 const PRETTY_FEATURE = {
   num_tasks: 'Task arrival rate',
@@ -144,6 +147,18 @@ function Forecastability({ report }) {
         {v.gist} This is decided <strong>before any model is trained</strong>, from a
         single pass over the trace.
       </p>
+
+      {report.recommended_algo && (
+        <p className="panel-note">
+          <strong>
+            Recommended predictor: {ALGO_LABEL[report.recommended_algo] ?? report.recommended_algo}
+          </strong>
+          {report.recommended_algo !== 'xgboost' && (
+            <> — note this is <em>not</em> the shipped default. </>
+          )}
+          {' '}{report.recommendation_note}
+        </p>
+      )}
       <p className="panel-note">
         Note that <em>level acf1</em> is deliberately not the deciding statistic. It sits
         above 0.84 on every workload measured — including the random walk where nothing
@@ -180,6 +195,7 @@ function Explanation({ explanation }) {
     'treeshap-exact': 'Exact TreeSHAP',
     'linear-shap-exact': 'Exact linear SHAP',
     'impurity-importance-approx': 'Impurity importance (approximation)',
+    'identity-exact': 'Exact (carried forward)',
   }[explanation.method] || explanation.method
 
   return (
@@ -200,6 +216,12 @@ function Explanation({ explanation }) {
           <> <strong>Note:</strong> Random Forest has no exact TreeSHAP here, so this
             shows impurity importance scaled to the prediction — it is directional,
             not additive. Switch to XGBoost for exact attribution.</>
+        )}
+        {explanation.method === 'identity-exact' && (
+          <> <strong>Note:</strong> the persistence predictor carries the current
+            interval forward, so the forecast is the product of the task count and
+            the per-task demand and nothing else contributes. The two are split
+            evenly, which is their Shapley value.</>
         )}
       </p>
     </div>
