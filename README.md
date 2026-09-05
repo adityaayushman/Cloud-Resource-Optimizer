@@ -109,9 +109,9 @@ predictive baseline:
 | Multi-cloud saving | −12.8% | −14.3% | −15.0% | −15.3% |
 
 Four workloads, four wins on cost and utilisation, and the same trade-off each
-time — failures rise from near-zero to under 1.4%. The gain tracks how much the
-fixed-headroom baseline was wasting, so it is largest on the burstiest workload
-and smallest on the smoothest.
+time — failures rise from near-zero to under 1.4%. The size of the gain tracks
+how much the fixed-headroom baseline was already wasting: it correlates with the
+baseline's own utilisation at r = −0.84, lowest baseline giving the largest gain.
 
 **The forecasting result does not replicate — in either direction.** The
 synthetic study concluded the forecaster wins from 15 minutes out. The Bitbrains
