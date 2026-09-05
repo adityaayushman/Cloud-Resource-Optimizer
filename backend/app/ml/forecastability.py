@@ -30,12 +30,15 @@ demand is smooth at five-minute resolution. A high `acf1` is why a naive
 baseline scores R² > 0.9 and why R² alone is close to meaningless on this
 problem. It says nothing about whether a model can add value.
 
-The same statistic carries a second warning. A reactive threshold autoscaler
-scales to the *last* observation, so it is a persistence forecaster wearing a
-different hat. On the most strongly mean-reverting workload measured (Google,
-diff_acf1 = -0.52) it did not merely underperform - it oscillated into 67.6%
-task failures. Strong mean reversion means "build the forecaster" *and* "do not
-ship a reactive controller".
+There is a suggestive second reading, offered here as a caution rather than a
+result. A reactive threshold autoscaler scales to the *last* observation, so it
+is a persistence forecaster wearing a different hat, and on the most strongly
+mean-reverting workload measured (Google, diff_acf1 = -0.52) the reactive arm did
+not merely underperform - it rejected 67.6% of all work. But across the four
+workloads that arm was run on, the correlation between diff_acf1 and its failure
+rate is only -0.465, and the second-most mean-reverting workload had the *lowest*
+failure rate of the four. The mechanism is plausible; four points do not
+establish it.
 
 See `docs/RESULTS-CROSS-DATASET.md` for the measurements behind the thresholds.
 """
@@ -109,8 +112,9 @@ def assess(cpu_demand: Sequence[float], interval_minutes: int = 5) -> dict:
             f"Changes in demand reverse (diff_acf1 = {diff_acf1:+.3f}): a rise is "
             f"typically followed by a fall. A persistence baseline always predicts "
             f"the rise continues, so it is systematically wrong in a way a learned "
-            f"model can correct. Note also that a reactive threshold autoscaler "
-            f"shares persistence's blind spot here and may oscillate."
+            f"model can correct. A reactive threshold autoscaler scales to the last "
+            f"observation and so shares that blind spot; worth testing before "
+            f"relying on one here."
         )
     elif diff_acf1 >= PERSISTENCE_SUFFICIENT_ABOVE:
         verdict = "persistence_sufficient"

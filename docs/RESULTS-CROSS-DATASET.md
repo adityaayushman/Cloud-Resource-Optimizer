@@ -373,27 +373,41 @@ about the catalogue, and it is reported rather than worked around.
 | google | 42.48 | 36.10 | −15.0% |
 | azure | 38.16 | 32.31 | −15.3% |
 
-Utilisation, latency and failure rate are **identical to three decimal places** in
-every pair — provider selection changes only where capacity is bought. Four
-independent confirmations of a −13% to −15% saving at no measurable cost.
+Response latency is **identical** in all four pairs, and on Google and Azure so
+are utilisation and failure rate, to the last digit recorded. On the other two the
+movement is within noise: utilisation shifts by 0.33 points on synthetic and 0.16
+on Bitbrains, failure rate by 0.04 and 0.001 points, against arm standard
+deviations an order of magnitude larger. Provider selection changes where capacity
+is bought and essentially nothing else — four independent confirmations of a −13%
+to −15% saving at no measurable cost.
 
-### A second use for `diff_acf1`: reactive scaling fails where forecasting works
+### The reactive arm collapses on Google
 
-On Google, the threshold-reactive arm does not merely underperform, it collapses:
+On Google, the threshold-reactive arm does not merely underperform, it fails
+outright:
 
-| trace | reactive fail % | reactive latency | reactive SLA |
-|---|---|---|---|
-| synthetic | 1.07% | 1,720 s | — |
-| bitbrains | 12.30% | 6,675 s | 80.8% |
-| azure | 2.88% | 5,195 s | 92.6% |
-| **google** | **67.55%** | **59,765 s** | **3.1%** |
+| trace | `diff_acf1` | reactive fail % | reactive latency | reactive SLA |
+|---|---|---|---|---|
+| **google** | −0.521 | **67.55%** | **59,765 s** | **3.1%** |
+| synthetic | −0.349 | 1.07% | 1,720 s | — |
+| azure | −0.319 | 2.88% | 5,195 s | 92.6% |
+| bitbrains | +0.173 | 12.30% | 6,675 s | 80.8% |
 
-Google is the trace with the strongest mean reversion (`diff_acf1` = −0.521). A
-reactive controller scales to the *last* observation; when changes systematically
-reverse, it is always correcting toward a level that has already gone away, and it
-oscillates. The same statistic that makes a learned forecaster valuable makes a
-reactive threshold controller dangerous — they are two consequences of one
-property of the workload.
+Two thirds of all work rejected, and a mean recovery latency of sixteen hours.
+This is the strongest argument in the whole project against reactive threshold
+autoscaling, and it is worth stating plainly: on one of four production workloads
+the industry-standard control policy did not merely lose to the learned one, it
+was unusable.
+
+The tempting explanation is that Google is also the most strongly mean-reverting
+trace, and that a reactive controller — which scales to the *last* observation,
+exactly as a persistence forecaster does — is always correcting toward a level
+that has already gone away. The mechanism is real, but **these four points do not
+establish it**: the correlation between `diff_acf1` and the reactive failure rate
+is only −0.465, and synthetic is the second-most mean-reverting workload while
+having the *lowest* reactive failure rate of the four. Google is a striking single
+case with a plausible mechanism, not a demonstrated relationship, and separating
+the two would need more workloads than this study has.
 
 ### Deep versus tabular, a fourth time
 
