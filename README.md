@@ -106,10 +106,10 @@ mismatch rather than control policy:
 
 | | synthetic | bitbrains | google | azure |
 |---|---|---|---|---|
-| Utilisation gain | +28.7% | +53.0% | +6.0% | +15.4% |
-| Cost reduction | −33.6% | −42.2% | −19.5% | −26.8% |
-| Task failure rate | 1.37% | 0.95% | 0.66% | 0.22% |
-| Multi-cloud saving | −12.8% | −14.3% | −15.0% | −15.3% |
+| Utilisation gain | +28.7% | +47.9% | +6.0% | +15.4% |
+| Cost reduction | −33.6% | −39.5% | −19.5% | −26.8% |
+| Task failure rate | 1.37% | 0.84% | 0.66% | 0.22% |
+| Multi-cloud saving | −12.8% | −13.7% | −15.0% | −15.3% |
 
 Four workloads, four wins on cost and utilisation, and the same trade-off each
 time — failures rise from near-zero to under 1.4%. The size of the gain tracks
