@@ -47,9 +47,22 @@ python scripts/generate_data.py --days 30 --interval 5   # → data/workload_his
 python scripts/train.py                                   # → artifacts/*
 python scripts/evaluate.py                                # → artifacts/ablation.json
 python scripts/horizon_study.py                           # → artifacts/horizon_study.json
-pytest                                                    # 58 tests
+pytest                                                    # 97 tests
 
 uvicorn app.main:app --reload                             # http://localhost:8000/docs
+```
+
+To reproduce the cross-dataset study, fetch the production traces first — each
+takes about a minute and needs no credentials:
+
+```bash
+for ds in bitbrains google azure alibaba; do
+  python scripts/fetch_trace.py --dataset $ds --entities 300
+done
+
+python scripts/cross_dataset_study.py       # → artifacts/cross_dataset_study.json
+python scripts/render_cross_dataset.py      # → the Markdown tables in docs/
+./scripts/run_trace_study.sh google 40      # train + ablate one trace end to end
 ```
 
 ```bash
@@ -242,16 +255,19 @@ comment at the relevant code site.
 │   │   ├── catalog.py         instances, pricing, multi-cloud scoring
 │   │   ├── workload.py        synthetic workload generator
 │   │   ├── ml_models.py       ML facade  →  app/ml/{predictor,dqn,qlearning,anomaly}.py
+│   │   │                      plus app/ml/forecastability.py
 │   │   ├── engine.py          allocator, autoscaler, advisory, RL glue
 │   │   ├── simulation.py      closed-loop harness + ablation
 │   │   ├── sessions.py        in-memory session store
 │   │   ├── schemas.py         request/response models
 │   │   └── main.py            FastAPI application
 │   ├── scripts/               generate_data · train · evaluate · horizon_study
+│   │                          fetch_trace · cross_dataset_study · render_cross_dataset
 │   ├── tests/                 pytest suite
 │   └── requirements.txt
 ├── frontend/                  React + Vite dashboard
-├── docs/                      RESULTS.md · API.md · DEPLOYMENT.md · REPORT-NOTES.md
+├── docs/                      RESULTS.md · RESULTS-REAL-TRACE.md ·
+│                              RESULTS-CROSS-DATASET.md · API.md · DEPLOYMENT.md
 ├── render.yaml                Render blueprint
 └── README.md
 ```
@@ -265,6 +281,7 @@ Interactive docs at `/docs` on the running service. Principal endpoints:
 | `GET` | `/api/health` | Service and artifact status |
 | `GET` | `/api/meta` | Catalogue, features, RL actions |
 | `GET` | `/api/models/metrics` | Full training report |
+| `GET` | `/api/workload/forecastability` | Is an ML forecaster worth building here? |
 | `POST` | `/api/models/predict` | Forecast + SHAP attribution |
 | `POST` | `/api/providers/score` | Multi-cloud scoreboard |
 | `POST` | `/api/session` | Create a simulation session |
