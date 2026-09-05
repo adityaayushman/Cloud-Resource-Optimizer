@@ -50,7 +50,16 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", type=Path,
                     default=ROOT / "artifacts" / "cross_dataset_study.json")
+    ap.add_argument("--out", type=Path, default=None,
+                    help="write here instead of stdout (always UTF-8)")
     args = ap.parse_args()
+
+    # The tables use ✅ / ❌ / ÷, and a Windows console is cp1252 by default,
+    # which cannot encode any of them. Force UTF-8 rather than degrade the
+    # output to ASCII.
+    sink: list[str] = []
+    def print(*parts, **_):                       # noqa: A001 - deliberate shadow
+        sink.append(" ".join(str(p) for p in parts))
 
     study = json.loads(args.json.read_text(encoding="utf-8"))
     rows = study["rows"]
@@ -125,6 +134,14 @@ def main() -> int:
         print(f"\nCorrelation between a trace's `diff_acf1` and its mean MAE ratio "
               f"across all 12 of its cells: **{corr:+.3f}** "
               f"(n = {len(traces)} workloads).")
+
+    text = "\n".join(sink) + "\n"
+    if args.out:
+        args.out.write_text(text, encoding="utf-8")
+        sys.stderr.write(f"wrote {args.out}\n")
+    else:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stdout.write(text)
     return 0
 
 

@@ -91,25 +91,44 @@ control policies run against an **identical** workload trace per seed; only the
 policy varies. See `docs/RESULTS.md` for the full table and `artifacts/ablation.json`
 for the raw output.
 
-### Validated on a real production trace
+### Validated on four production traces
 
-The synthetic results below are reproduced on **Bitbrains GWA-T-12** — 300 real
-VMs from a production datacentre, 5-minute sampling, 30 days
-(`scripts/fetch_trace.py --dataset bitbrains`). Full study: [docs/RESULTS-REAL-TRACE.md](docs/RESULTS-REAL-TRACE.md).
+Everything below is reproduced on four public production traces as well as the
+synthetic generator — Bitbrains GWA-T-12, Google Borg, Azure and Alibaba, all
+built by `scripts/fetch_trace.py`. Full study:
+[docs/RESULTS-CROSS-DATASET.md](docs/RESULTS-CROSS-DATASET.md).
 
-| | Synthetic | Real trace |
-|---|---|---|
-| Utilisation gain vs baseline | +28.7% | **+53.0%** |
-| Cost reduction vs baseline | −33.6% | **−42.2%** |
-| Task failure rate | 1.37% | **0.95%** |
-| Multi-cloud cost saving | −12.8% | −14.3% |
+**The control results replicate everywhere.** Full system vs the ML-only
+predictive baseline:
 
-**The RL result strengthens on real data. The forecasting result does not
-survive it.** On production telemetry no tree ensemble beats a persistence
-baseline at any horizon, and the deficit *grows* with horizon — the exact
-opposite of the synthetic trend. The synthetic conclusion was an artefact of
-structure the generator put in the data. That negative result is reported rather
-than buried, and it is the clearest argument for validating on real traces.
+| | synthetic | bitbrains | google | azure |
+|---|---|---|---|---|
+| Utilisation gain | +28.7% | +53.0% | +6.0% | +15.4% |
+| Cost reduction | −33.6% | −42.2% | −19.5% | −26.8% |
+| Task failure rate | 1.37% | 0.95% | 0.66% | 0.22% |
+| Multi-cloud saving | −12.8% | −14.3% | −15.0% | −15.3% |
+
+Four workloads, four wins on cost and utilisation, and the same trade-off each
+time — failures rise from near-zero to under 1.4%. The gain tracks how much the
+fixed-headroom baseline was wasting, so it is largest on the burstiest workload
+and smallest on the smoothest.
+
+**The forecasting result does not replicate — in either direction.** The
+synthetic study concluded the forecaster wins from 15 minutes out. The Bitbrains
+study concluded it never wins. Both were true of their own dataset and neither
+generalises: on Google, linear regression beats persistence at every horizon, and
+on Azure at three of four — one cell reaching 23 of 23 test blocks at p ≈ 10⁻⁷.
+
+What does generalise is **which case you are in, and that is predictable before
+any model is trained** — from `diff_acf1`, the lag-1 autocorrelation of the first
+difference. Near zero means a random walk, where "next equals current" is already
+optimal; strongly negative means changes reverse, which persistence cannot
+exploit and a model can. Order the workloads by it and you order the outcomes:
+**r = +0.956**, no inversions. See the table below.
+
+Bitbrains is the only trace on the wrong side of that line, and it is the one the
+earlier single-dataset study drew its conclusion from. The diagnostic ships as
+`GET /api/workload/forecastability` so it can be run against any trace.
 
 ### Ablation — 7 policies × 3 seeds × 24 h, identical trace per seed
 
@@ -138,20 +157,40 @@ a strict improvement, and the README says so because the measurement says so.
 | *Persistence baseline* | *0.9283* | *1.899* | — | — |
 
 **A high R² here proves very little on its own** — "next interval equals this
-one" already scores 0.9283. The forecaster's real justification is how its
-advantage scales with horizon (3 seeds, margin over persistence):
+one" already scores 0.9283. That is why every forecasting claim in this project
+is stated as a margin over persistence, and why the deciding measure in the
+cross-dataset study is the **MAE ratio** rather than R²: R² is computed against
+the variance of whichever block it lands in, and moves with the block.
 
-| Horizon | XGBoost | Random Forest | Linear Regression |
-|---|---|---|---|
-| 5 min | −0.0009 *(1/3 seeds)* | −0.0143 *(0/3)* | +0.0026 *(2/3)* |
-| **15 min** | **+0.0108 (3/3)** | +0.0042 (2/3) | +0.0106 (2/3) |
-| **30 min** | **+0.0403 (3/3)** | +0.0245 (2/3) | +0.0186 (2/3) |
-| **60 min** | **+0.1490 (3/3)** | +0.1413 (3/3) | +0.0401 (2/3) |
+Under the strict protocol — disjoint test blocks, Wilcoxon signed-rank on the
+paired per-block differences, Holm–Bonferroni across all 60 tests — the picture
+is workload-dependent, and the older "breakeven is 15 minutes" claim does not
+survive:
 
-Breakeven is 15 minutes. At one 5-minute step the series is autocorrelated
-enough that the learned model adds essentially nothing; it separates decisively
-once it must see past the autocorrelation, and the ensembles only pull away from
-the linear baseline at long horizons.
+| trace | `diff_acf1` | 5 min | 15 min | 30 min | 60 min | won / lost / tied |
+|---|---|---|---|---|---|---|
+| **bitbrains** | **+0.173** | ❌ 1.25 | ❌ 1.12 | ❌ 1.09 | ➖ 1.14 | 0 / **11** / 1 |
+| alibaba | −0.222 | ➖ 0.96 | ➖ 0.89 | ➖ 0.80 | ➖ 0.83 | 0 / 0 / 12 |
+| azure | −0.319 | ✅ 0.88 | ✅ 0.89 | ✅ 0.87 | ➖ 0.90 | 3 / 0 / 9 |
+| synthetic | −0.349 | ➖ 0.95 | ➖ 0.95 | ➖ 0.95 | ➖ 0.64 | 1 / 0 / 11 |
+| google | −0.521 | ✅ 0.84 | ✅ 0.84 | ✅ 0.87 | ✅ 0.87 | **4** / 0 / 8 |
+
+✅ a model beats persistence · ❌ persistence beats every model · ➖ no
+significant difference. Figures are the best model's median MAE ratio; the last
+column counts all 12 cells (4 horizons × 3 models) per workload.
+
+**The rows are sorted by `diff_acf1`, and that sort also orders the outcomes —
+with no inversions.** Correlation between a workload's `diff_acf1` and its mean
+MAE ratio across its 12 cells is **+0.956**.
+
+Three things follow. **Bitbrains is the only workload where any model loses
+significantly**, and it loses 11 of 12 cells. **On synthetic data breakeven is
+60 minutes, not 15** — the original claim rested on three overlapping windows
+with no significance test, and after Holm correction only Random Forest at 60
+minutes survives. **Linear regression is the only model that ever wins on real
+data** — all seven real-trace wins are LR; XGBoost and Random Forest never beat
+persistence on a production trace at any horizon. Mean reversion is linear
+structure, and trees are the wrong inductive bias for it.
 
 ### Anomaly detection (event-scored, matched recall)
 

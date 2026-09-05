@@ -54,8 +54,27 @@ horizons (0.898 vs 0.789 at 60 min), which is where the workload's non-smooth
 structure — the batch window, the weekday-afternoon interaction — starts to
 matter more than the recent level.
 
-This is the honest justification for the ML layer, and it is a stronger claim
-than a bare R² because it is stated against a baseline and measured across seeds.
+> **Superseded — the breakeven above is too optimistic, and this is synthetic
+> data.** Two later studies revise this section.
+>
+> [RESULTS-CROSS-DATASET.md](RESULTS-CROSS-DATASET.md) reruns the same question
+> under a stricter protocol: **disjoint** test blocks instead of three
+> overlapping windows, a Wilcoxon signed-rank test on the paired per-block
+> differences, and Holm–Bonferroni correction across the whole family of tests.
+> On this same synthetic workload, **breakeven moves from 15 minutes to 60** —
+> at 15 and 30 minutes ahead there is no statistically significant difference
+> between any model and persistence. The three-seed margins above were never
+> tested for significance, and three overlapping windows cannot establish one.
+>
+> The same study also shows the conclusion is workload-dependent: on the
+> Bitbrains production trace no model beats persistence at any horizon, while on
+> Google and Azure linear regression beats it at every horizon. Which case you
+> are in is predictable in advance — see
+> `GET /api/workload/forecastability`.
+>
+> The table above is left in place because it is what `scripts/horizon_study.py`
+> produces and the report cites it. Read it as descriptive of one dataset under a
+> weaker protocol, not as a general claim.
 
 ## 3. Anomaly detection
 

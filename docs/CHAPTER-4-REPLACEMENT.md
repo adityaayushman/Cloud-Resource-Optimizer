@@ -69,40 +69,109 @@ Regression 0.9204, Random Forest 0.9108).
 
 ---
 
-## 4.3 Does the Forecaster Earn Its Place? A Horizon Study
+## 4.3 Does the Forecaster Earn Its Place? A Cross-Workload Study
 
 Because the one-step margin is small, a dedicated experiment was run to
 establish the conditions under which the learned model is actually worth
-deploying. The forecast horizon was swept while holding everything else fixed,
-across three independent workload seeds.
+deploying. An earlier version of this experiment swept the forecast horizon on
+the synthetic workload alone, across three seeds, and concluded that break-even
+was fifteen minutes. **That conclusion did not survive scrutiny**, in two
+separate ways, and the corrected experiment is reported here instead.
 
-**Table 4.2 — Margin over the persistence baseline by forecast horizon**
-*(margin = model R² − persistence R², mean over 3 seeds; "wins" counts seeds
-where the model beat the baseline)*
+### 4.3.1 Why the earlier protocol was not sufficient
 
-| Horizon | XGBoost | Random Forest | Linear Regression |
-|---|---|---|---|
-| 5 min | −0.0009 (1/3) | −0.0143 (0/3) | +0.0026 (2/3) |
-| **15 min** | **+0.0108 (3/3)** | +0.0042 (2/3) | +0.0106 (2/3) |
-| **30 min** | **+0.0403 (3/3)** | +0.0245 (2/3) | +0.0186 (2/3) |
-| **60 min** | **+0.1490 (3/3)** | +0.1413 (3/3) | +0.0401 (2/3) |
+The three "seeds" produced heavily overlapping windows of one dataset, and no
+significance test was applied to the resulting margins. A margin of +0.011 R²
+observed on three correlated samples is not evidence of anything. The revised
+protocol fixes three things:
 
-Three findings follow.
+- **Disjoint test blocks.** The model is refit at K successive origins and scored
+  on non-overlapping blocks, so the K paired differences approximate independent
+  observations. The training window expands, matching how a deployed forecaster
+  is actually retrained — and because persistence requires no training at all,
+  any restriction on training data would handicap one arm only.
+- **A paired significance test.** Two-sided Wilcoxon signed-rank on the per-block
+  differences; signed-rank rather than a *t*-test because K is small and per-block
+  error is not normally distributed.
+- **Multiple-comparison correction.** Five workloads × four horizons × three
+  models is 60 hypotheses, of which three would clear α = 0.05 by chance.
+  Holm–Bonferroni is applied across the whole family.
 
-1. **Break-even is fifteen minutes.** Below it the learned model does not
-   reliably beat persistence; at and above it, XGBoost wins on every seed.
-2. **The advantage grows with horizon** — from +0.011 at 15 minutes to +0.149 at
-   60 minutes. The further ahead the system must see, the less the recent level
-   tells it, and the more the learned structure matters.
-3. **The ensembles only separate from the linear model at long horizons**
-   (0.898 vs 0.789 at 60 minutes). This is where the workload's non-smooth
-   structure — the weekday 02:00–04:00 batch window and the weekday-afternoon
-   interaction — begins to dominate, and a model linear in the cyclical encoding
-   of the hour cannot represent a step change.
+The reported measure is the **MAE ratio** (model ÷ persistence; below 1 means the
+model wins) rather than R², because R² is computed against the variance of
+whichever block it falls in and therefore moves with the block.
 
-This experiment is the justification for including a machine-learning layer at
-all, and it is a stronger statement than a bare accuracy figure because it is
-made against a baseline and replicated across seeds.
+### 4.3.2 The result depends on the workload
+
+**Table 4.2 — Best model's median MAE ratio by workload and horizon**
+*(✅ model beats persistence, significant after Holm correction; ❌ persistence
+beats every model; ➖ no significant difference. Rows sorted by `diff_acf1`.)*
+
+| Workload | `diff_acf1` | 5 min | 15 min | 30 min | 60 min | won / lost / tied |
+|---|---|---|---|---|---|---|
+| **Bitbrains** | **+0.173** | ❌ 1.25 | ❌ 1.12 | ❌ 1.09 | ➖ 1.14 | 0 / **11** / 1 |
+| Alibaba | −0.222 | ➖ 0.96 | ➖ 0.89 | ➖ 0.80 | ➖ 0.83 | 0 / 0 / 12 |
+| Azure | −0.319 | ✅ 0.88 | ✅ 0.89 | ✅ 0.87 | ➖ 0.90 | 3 / 0 / 9 |
+| Synthetic | −0.349 | ➖ 0.95 | ➖ 0.95 | ➖ 0.95 | ➖ 0.64 | 1 / 0 / 11 |
+| Google Borg | −0.521 | ✅ 0.84 | ✅ 0.84 | ✅ 0.87 | ✅ 0.87 | **4** / 0 / 8 |
+
+The last column counts all twelve cells per workload (four horizons × three
+models). Note how many cells are ties: after correction for sixty simultaneous
+tests these effects are real but modest, and reporting every nominal p < 0.05 as
+a finding would overstate them.
+
+Four findings follow, and none is the finding the earlier version reported.
+
+1. **Bitbrains is the only workload where any model loses significantly**, and it
+   loses in eleven of its twelve cells, with the deficit widening as the horizon
+   grows (XGBoost 1.53 → 1.84 in mean ratio). No other trace contains a single
+   significant loss.
+2. **On the synthetic workload, break-even is sixty minutes, not fifteen.** At 15
+   and 30 minutes there is no significant difference between any model and
+   persistence, and even at 60 minutes only Random Forest survives correction
+   (p = 0.017; XGBoost 0.060, linear regression 0.075). The earlier claim was an
+   untested margin measured on overlapping windows.
+3. **Linear regression is the only model that ever wins on real data.** All seven
+   significant wins across the three production traces are linear regression
+   (Google 4, Azure 3). XGBoost and Random Forest never beat persistence on a
+   production trace at any horizon, and on Bitbrains they lose *worse* than the
+   linear model does. Mean reversion is linear structure; trees split on local
+   thresholds and extrapolate noise. The one ensemble win in the table is on the
+   synthetic generator, which contains learnable step structure by construction.
+4. **Alibaba can neither win nor lose.** All twelve cells tie. With 16 test blocks
+   from 6.1 days it has the least statistical power of the five — an honest
+   "cannot tell", not a null result.
+
+### 4.3.3 The condition is identifiable in advance
+
+The workloads separate on one statistic: **`diff_acf1`, the lag-1
+autocorrelation of the first difference**. Near zero means demand is a random
+walk, so this interval's change carries no information about the next and
+persistence is already the best available forecast. Strongly negative means
+changes reverse, which persistence structurally cannot exploit and a model can.
+
+The relationship is not merely directional. Sorting the five workloads by
+`diff_acf1` also sorts them by mean MAE ratio across their twelve cells, with no
+inversions, at a correlation of **+0.956**. Bitbrains is the only workload on the
+wrong side of the boundary, and the only one where any model loses.
+
+The statistic that does *not* work is the autocorrelation of the level, which
+exceeds 0.84 on all five workloads including the random walk. That is precisely
+why a naive baseline scores R² above 0.9 in Table 4.1 and why a high R² is not
+evidence of a useful model.
+
+Two practical consequences. First, the diagnostic costs one pass over a trace and
+no training, so the question "is an ML forecaster worth building here?" is
+answerable before building one; it is exposed in the implementation as
+`GET /api/workload/forecastability`. Second, it also predicts where *reactive*
+autoscaling is dangerous — a threshold controller scales to the last observation
+and so shares persistence's blind spot. On the most strongly mean-reverting
+workload measured it oscillated into 67.6% task failures (§4.6).
+
+The honest summary is that this project asked "does the forecaster earn its
+place?" three times on three datasets and got three different answers, and that
+the useful contribution is not any one of those answers but the cheap test that
+tells you which one applies.
 
 ---
 
