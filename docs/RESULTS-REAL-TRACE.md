@@ -22,12 +22,13 @@ most useful thing this validation produced.
 > this page is correct about this trace, and the page was wrong to imply it was
 > a general property of production workloads.
 >
-> A second correction: the dataset here was rebuilt after a bug was found in the
-> aggregation (25 low-coverage slots produced artificial one-interval dips). The
-> numbers on this page predate that fix. It shifts mean CPU by 0.18% and does not
-> move any conclusion, but it does raise Bitbrains's first-difference
-> autocorrelation from +0.078 to +0.173 — making the random-walk diagnosis
-> stronger, not weaker.
+> A second correction: the dataset was rebuilt after a bug was found in the
+> aggregation (25 low-coverage slots produced artificial one-interval dips), and
+> the whole pipeline re-run on the corrected data. The tables below are the
+> re-run. Nothing changed qualitatively — the utilisation gain moved from +53.0%
+> to +47.9% and the cost reduction from −42.2% to −39.5% — but the fix does raise
+> Bitbrains's first-difference autocorrelation from +0.078 to +0.173, making the
+> random-walk diagnosis stronger rather than weaker.
 
 ---
 
@@ -47,8 +48,8 @@ business-critical enterprise applications. Retrieved with
 | Sampling interval | **300 s** (matches the control interval exactly) |
 | Span | 2013-08-12 13:40 → 2013-09-11 13:35 (30 days) |
 | Aggregated rows | 8,640 |
-| Mean CPU demand | 136.4 cores (peak 291.8) |
-| Mean RAM demand | 171.2 GB (peak 790.6) |
+| Mean CPU demand | 136.7 cores (peak 291.8) |
+| Mean RAM demand | 171.6 GB (peak 790.6) |
 | RAM:CPU ratio | **1.26** |
 
 Per-VM series are summed per timestamp to give datacentre-level demand, which is
@@ -130,27 +131,27 @@ The RL result not only survives the move to real data, it **strengthens**.
 | Configuration | Utilisation (%) | Cost ($/day) | Latency (s) | Fail (%) | SLA (%) | CO₂ (kg) | Nodes |
 |---|---|---|---|---|---|---|---|
 | Static rule-based *(negative control)* | 58.1 ± 22.4 | 111.45 ± 0.00 | 6499 | 10.65 | 64.8 | 21.62 | 13.0 |
-| Threshold reactive | 63.8 ± 1.9 | 109.14 ± 43.66 | 6675 | 12.30 | 80.8 | 28.42 | 29.2 |
-| **ML prediction only** *(baseline)* | 58.2 ± 3.1 | 119.99 ± 46.88 | 345 | 0.08 | 99.0 | 26.06 | 19.2 |
-| ML + multi-cloud | 58.4 ± 3.7 | 102.84 ± 38.02 | 345 | 0.08 | 99.0 | 24.49 | 18.0 |
-| Tabular Q-learning | 91.3 ± 4.3 | 77.30 ± 32.53 | 505 | 1.78 | 37.4 | 20.33 | 11.1 |
-| DQN only | 88.9 ± 5.6 | 79.53 ± 32.04 | 530 | 1.10 | 52.5 | 20.87 | 11.9 |
-| **All components combined** | **89.1 ± 3.9** | **69.31 ± 27.50** | 453 | 0.95 | 56.2 | 20.34 | 10.9 |
+| Threshold reactive | 63.9 ± 1.5 | 108.97 ± 42.54 | 6975 | 12.59 | 80.6 | 27.76 | 27.7 |
+| **ML prediction only** *(baseline)* | 58.0 ± 3.2 | 120.85 ± 45.87 | 345 | 0.08 | 99.2 | 25.74 | 18.4 |
+| ML + multi-cloud | 57.8 ± 3.6 | 104.32 ± 37.13 | 345 | 0.08 | 99.2 | 24.51 | 17.9 |
+| Tabular Q-learning | 91.2 ± 4.4 | 77.29 ± 32.27 | 504 | 2.37 | 30.7 | 20.81 | 12.5 |
+| DQN only | 87.2 ± 4.0 | 83.59 ± 33.53 | 463 | 1.02 | 56.7 | 21.97 | 14.2 |
+| **All components combined** | **85.8 ± 3.3** | **73.16 ± 30.17** | 432 | 0.84 | 66.1 | 21.20 | 13.0 |
 
 ### Synthetic vs real, full system against its baseline
 
 | | Synthetic | Real trace |
 |---|---|---|
-| Utilisation gain | +28.7% | **+53.0%** |
-| Cost reduction | −33.6% | **−42.2%** |
-| Task failure rate | 1.37% | **0.95%** |
+| Utilisation gain | +28.7% | **+47.9%** |
+| Cost reduction | −33.6% | **−39.5%** |
+| Task failure rate | 1.37% | **0.84%** |
 
 The gains are **larger** on production data, and the failure rate is **lower**.
 The reason is visible in the fleet sizes: the predictive baseline holds a fixed
-1.2× headroom and ends up running 19.2 nodes at 58% utilisation, because real
+1.2× headroom and ends up running 18.4 nodes at 58% utilisation, because real
 demand is burstier than the synthetic workload and a fixed multiplier must be
 sized for the peaks. The learned policy adapts its headroom to state and serves
-the same workload with 10.9 nodes at 89% utilisation.
+the same workload with 13.0 nodes at 86% utilisation.
 
 The DQN also improved during training on the real trace, on a held-out window:
 
@@ -161,14 +162,14 @@ The DQN also improved during training on the real trace, on a held-out window:
 
 ### Deep vs tabular, again
 
-DQN rejects 1.10% of work against tabular Q-learning's 1.78%, at comparable
+DQN rejects 1.02% of work against tabular Q-learning's 2.37%, at comparable
 utilisation. The same generalisation gap seen on synthetic data appears on real
 data, which is a genuine replication rather than a repeat of one experiment.
 
 ### Multi-cloud, again
 
-Cost −14.3% with utilisation, latency and failure rate unchanged (58.2 → 58.4%,
-345 s → 345 s, 0.08% → 0.08%). This is the third independent confirmation that
+Cost −13.7% with utilisation, latency and failure rate essentially unchanged
+(58.0 → 57.8%, 345 s → 345 s, 0.08% → 0.08%). This is the third independent confirmation that
 provider selection is a free saving: it changes only where capacity is bought.
 
 ---
@@ -177,11 +178,11 @@ provider selection is a free saving: it changes only where capacity is bought.
 
 | Detector | Events | Detected | Precision | Recall | F1 |
 |---|---|---|---|---|---|
-| Z-score (4σ) | 248 | 97 | 0.708 | **0.391** | **0.504** |
-| Isolation Forest | 248 | 42 | **0.764** | 0.169 | 0.277 |
+| Z-score (4σ) | 244 | 108 | 0.755 | **0.443** | **0.558** |
+| Isolation Forest | 244 | 45 | **0.833** | 0.184 | 0.302 |
 
 On synthetic data Isolation Forest led (F1 0.506 vs 0.379); on the real trace
-z-score leads (0.504 vs 0.277). Both detectors are far more *precise* on real
+z-score leads (0.558 vs 0.302). Both detectors are far more *precise* on real
 data and far less *sensitive*. Since the real labels are themselves a
 first-difference rule, a univariate z-score on related features is closer to the
 labelling process — so this comparison should be read as weaker evidence than
@@ -193,8 +194,8 @@ the synthetic one, where labels were ground truth.
 
 **Transfers to production data**
 - Reinforcement-learned headroom control: larger gains than on synthetic data
-  (+53% utilisation, −42% cost), with a *lower* failure rate.
-- Multi-cloud provider selection: −14.3% cost at no measurable cost elsewhere.
+  (+48% utilisation, −40% cost), with a *lower* failure rate.
+- Multi-cloud provider selection: −13.7% cost at no measurable cost elsewhere.
 - The deep agent generalises better than the tabular one.
 - Reactive threshold scaling is the worst arm on both workloads.
 

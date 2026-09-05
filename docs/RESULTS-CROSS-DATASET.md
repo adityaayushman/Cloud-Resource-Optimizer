@@ -328,7 +328,7 @@ ticks, identical trace window per seed:
 | trace | base util | full util | ΔUtil | ΔCost | base fail | full fail | nodes base→full |
 |---|---|---|---|---|---|---|---|
 | synthetic | 60.3% | 77.6% | **+28.7%** | **−33.6%** | 0.24% | 1.37% | 9.2 → 6.1 |
-| bitbrains | 58.2% | 89.1% | **+53.0%** | **−42.2%** | 0.08% | 0.95% | 19.2 → 10.9 |
+| bitbrains | 58.0% | 85.8% | **+47.9%** | **−39.5%** | 0.08% | 0.84% | 18.4 → 13.0 |
 | google | 71.8% | 76.2% | **+6.0%** | **−19.5%** | 0.26% | 0.66% | 15.5 → 11.5 |
 | azure | 76.2% | 87.9% | **+15.4%** | **−26.8%** | 0.00% | 0.22% | 7.0 → 5.7 |
 
@@ -346,7 +346,7 @@ workloads the gain correlates with the baseline's own utilisation at
 
 | trace | baseline util | ΔUtil | CV |
 |---|---|---|---|
-| bitbrains | 58.2% | **+53.0%** | 0.573 |
+| bitbrains | 58.0% | **+47.9%** | 0.573 |
 | synthetic | 60.3% | +28.7% | 0.683 |
 | google | 71.8% | +6.0% | 0.183 |
 | azure | 76.2% | +15.4% | 0.105 |
@@ -369,14 +369,14 @@ about the catalogue, and it is reported rather than worked around.
 | trace | baseline $/day | with provider selection | saving |
 |---|---|---|---|
 | synthetic | 15.10 | 13.17 | −12.8% |
-| bitbrains | 119.99 | 102.84 | −14.3% |
+| bitbrains | 120.85 | 104.32 | −13.7% |
 | google | 42.48 | 36.10 | −15.0% |
 | azure | 38.16 | 32.31 | −15.3% |
 
 Response latency is **identical** in all four pairs, and on Google and Azure so
 are utilisation and failure rate, to the last digit recorded. On the other two the
-movement is within noise: utilisation shifts by 0.33 points on synthetic and 0.16
-on Bitbrains, failure rate by 0.04 and 0.001 points, against arm standard
+movement is within noise: utilisation shifts by 0.33 points on synthetic and 0.20
+on Bitbrains, failure rate by 0.04 and 0.003 points, against arm standard
 deviations an order of magnitude larger. Provider selection changes where capacity
 is bought and essentially nothing else — four independent confirmations of a −13%
 to −15% saving at no measurable cost.
@@ -391,7 +391,7 @@ outright:
 | **google** | −0.521 | **67.55%** | **59,765 s** | **3.1%** |
 | synthetic | −0.349 | 1.07% | 1,720 s | — |
 | azure | −0.319 | 2.88% | 5,195 s | 92.6% |
-| bitbrains | +0.173 | 12.30% | 6,675 s | 80.8% |
+| bitbrains | +0.173 | 12.59% | 6,975 s | 80.6% |
 
 Two thirds of all work rejected, and a mean recovery latency of sixteen hours.
 This is the strongest argument in the whole project against reactive threshold
@@ -414,7 +414,7 @@ the two would need more workloads than this study has.
 | trace | Q-learning fail % | DQN fail % |
 |---|---|---|
 | synthetic | 5.25% | 1.62% |
-| bitbrains | 1.78% | 1.10% |
+| bitbrains | 2.37% | 1.02% |
 | google | 11.26% | 1.66% |
 | azure | 0.65% | 0.44% |
 
