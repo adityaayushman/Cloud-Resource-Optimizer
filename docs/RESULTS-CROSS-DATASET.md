@@ -337,12 +337,26 @@ same one every time: failures rise from near-zero to well under 1.4%. This is a
 different point on the cost/reliability frontier, not a free lunch — but it is a
 *consistent* point, which the single-dataset study could not establish.
 
-**The size of the gain is explained by how much the baseline was wasting.** The
-predictive baseline holds a fixed headroom multiplier, which has to be sized for
-the peaks; the learned policy adapts headroom to state. So the gain is largest on
-the burstiest workload (Bitbrains, CV 0.573 → +53.0%) and smallest on the
-smoothest (Google, CV 0.183 → +6.0%). Where a fixed multiplier is nearly right
-already, there is little for a learned policy to recover.
+**The size of the gain tracks how much the baseline was already wasting.** The
+predictive baseline holds a fixed headroom multiplier that has to be sized for
+the peaks; the learned policy adapts headroom to state. So the recoverable slack
+is whatever the fixed multiplier left on the table, and across these four
+workloads the gain correlates with the baseline's own utilisation at
+**r = −0.84** — lowest baseline, largest gain:
+
+| trace | baseline util | ΔUtil | CV |
+|---|---|---|---|
+| bitbrains | 58.2% | **+53.0%** | 0.573 |
+| synthetic | 60.3% | +28.7% | 0.683 |
+| google | 71.8% | +6.0% | 0.183 |
+| azure | 76.2% | +15.4% | 0.105 |
+
+Burstiness is the plausible underlying cause — a fixed multiplier has to be sized
+for the peaks, so a burstier workload wastes more — but it is the *weaker*
+predictor here (r = +0.74 against ΔUtil) and it does not order the four
+correctly: Azure is the smoothest workload yet gains more than Google. With four
+points neither correlation should be taken as established; the mechanism is
+clear, the coefficient is not evidence.
 
 Alibaba is excluded from the ablation, not from the forecasting study. Its
 RAM:CPU ratio is 9.1 while the richest instance type in the catalogue offers 4.0,
