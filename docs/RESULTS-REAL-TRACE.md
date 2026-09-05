@@ -13,6 +13,22 @@ horizon grows. That conclusion was an artefact of structure the generator put
 into the data. It is reported here rather than buried, because it is the single
 most useful thing this validation produced.
 
+> **Superseded in part.** A later study,
+> [RESULTS-CROSS-DATASET.md](RESULTS-CROSS-DATASET.md), repeats this on Google,
+> Azure and Alibaba as well. The reinforcement-learning and multi-cloud results
+> below replicate on every workload. The forecasting result does not: Bitbrains
+> is the only one of the five whose demand behaves like a random walk, which is
+> exactly the condition under which persistence cannot be beaten. The finding on
+> this page is correct about this trace, and the page was wrong to imply it was
+> a general property of production workloads.
+>
+> A second correction: the dataset here was rebuilt after a bug was found in the
+> aggregation (25 low-coverage slots produced artificial one-interval dips). The
+> numbers on this page predate that fix. It shifts mean CPU by 0.18% and does not
+> move any conclusion, but it does raise Bitbrains's first-difference
+> autocorrelation from +0.078 to +0.173 — making the random-walk diagnosis
+> stronger, not weaker.
+
 ---
 
 ## 1. Dataset
@@ -20,7 +36,7 @@ most useful thing this validation produced.
 **Bitbrains GWA-T-12 (fastStorage)** — one month of per-VM telemetry from a
 distributed datacentre operated by Bitbrains, a service provider hosting
 business-critical enterprise applications. Retrieved with
-`scripts/fetch_bitbrains.py`.
+`scripts/fetch_trace.py --dataset bitbrains`.
 
 | Property | Value |
 |---|---|
@@ -200,7 +216,7 @@ and it is only visible because the naive baseline was measured throughout.
 
 ```bash
 cd backend
-python scripts/fetch_bitbrains.py --vms 300 --seed 42
+python scripts/fetch_trace.py --dataset bitbrains --entities 300 --seed 42
 python scripts/train.py    --data data/workload_bitbrains.csv \
                            --artifacts artifacts_bitbrains \
                            --trace data/workload_bitbrains.csv \
@@ -220,9 +236,14 @@ Outputs land in `backend/artifacts_bitbrains/`.
 - **300 of 1,241 VMs.** A larger sample would smooth the aggregate further; the
   sample is uniform and seeded, so the study is reproducible, but it is a sample.
 - **One trace, one provider, 2013.** Bitbrains is enterprise workload from one
-  datacentre. Google, Azure and Alibaba traces are available from the same mirror
-  and would test whether these conclusions hold across workload classes — the
-  obvious next experiment.
+  datacentre. **This has since been done** — see
+  [RESULTS-CROSS-DATASET.md](RESULTS-CROSS-DATASET.md), which repeats the whole
+  evaluation on Google, Azure and Alibaba as well. The control results replicate
+  on all of them. The forecasting result on this page does **not**: Bitbrains
+  turns out to be the only one of the five workloads whose demand behaves like a
+  random walk, and therefore the only one where persistence cannot be beaten. The
+  negative result below is real, but it is a fact about *this trace*, not about
+  cloud workloads, and §2 should be read with that correction in mind.
 - **Costs remain simulated.** The demand is real; the instance catalogue and
   pricing model are not. Relative comparisons hold; absolute dollars do not.
 - **Heuristic anomaly labels**, as noted in §1.

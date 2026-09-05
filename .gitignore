@@ -19,15 +19,20 @@ dist/
 # The dataset and trained models are rebuilt by the Render build command
 # (see render.yaml), so ~35 MB of .joblib files never enter git and a stale
 # committed model can never diverge from the deployed code.
+#
+# The pattern is a glob over every artifacts directory, not one line per
+# dataset: per-directory rules silently failed to cover artifacts_google/ and
+# artifacts_azure/ when those were added, and 177 MB of model binaries were
+# staged before it was caught.
 backend/data/*.csv
-backend/artifacts/*.joblib
-backend/artifacts_bitbrains/*.joblib
-backend/artifacts_bitbrains/*.log
-backend/artifacts/*.log
+backend/artifacts*/*.joblib
+backend/artifacts*/*.log
 
 # Keep the evaluation outputs: they are small, and the report cites them.
-!backend/artifacts/training_report.json
-!backend/artifacts/ablation.json
+!backend/artifacts*/training_report.json
+!backend/artifacts*/ablation.json
+!backend/artifacts*/horizon_study.json
+!backend/artifacts*/cross_dataset_study.json
 !backend/artifacts_bitbrains/*.json
 !backend/data/workload_bitbrains_manifest.json
 

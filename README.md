@@ -95,7 +95,7 @@ for the raw output.
 
 The synthetic results below are reproduced on **Bitbrains GWA-T-12** — 300 real
 VMs from a production datacentre, 5-minute sampling, 30 days
-(`scripts/fetch_bitbrains.py`). Full study: [docs/RESULTS-REAL-TRACE.md](docs/RESULTS-REAL-TRACE.md).
+(`scripts/fetch_trace.py --dataset bitbrains`). Full study: [docs/RESULTS-REAL-TRACE.md](docs/RESULTS-REAL-TRACE.md).
 
 | | Synthetic | Real trace |
 |---|---|---|

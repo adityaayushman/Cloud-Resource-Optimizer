@@ -1,0 +1,82 @@
+{
+  "algo": "xgboost",
+  "features": [
+    "num_tasks",
+    "cpu_per_task",
+    "ram_per_task",
+    "hour_sin",
+    "hour_cos",
+    "day_of_week",
+    "is_weekend",
+    "cpu_lag_1",
+    "cpu_lag_4",
+    "cpu_rolling_mean_4",
+    "cpu_rolling_std_8",
+    "ram_lag_1"
+  ],
+  "metrics": {
+    "algo": "xgboost",
+    "horizon": 1,
+    "n_train": 6043,
+    "n_val": 1295,
+    "n_test": 1296,
+    "targets": {
+      "cpu_demand_t+1": {
+        "validation": {
+          "r2": 0.38477,
+          "mae": 1.76132,
+          "rmse": 2.19406,
+          "mape": 4.24494
+        },
+        "test": {
+          "r2": 0.70918,
+          "mae": 1.19499,
+          "rmse": 1.48598,
+          "mape": 2.69306
+        },
+        "naive_persistence_test": {
+          "r2": 0.65413,
+          "mae": 1.29632,
+          "rmse": 1.62053,
+          "mape": 2.91113
+        }
+      },
+      "ram_demand_t+1": {
+        "validation": {
+          "r2": 0.38477,
+          "mae": 3.52264,
+          "rmse": 4.38811,
+          "mape": 4.24494
+        },
+        "test": {
+          "r2": 0.70918,
+          "mae": 2.38999,
+          "rmse": 2.97197,
+          "mape": 2.69306
+        },
+        "naive_persistence_test": {
+          "r2": 0.65413,
+          "mae": 2.59264,
+          "rmse": 3.24107,
+          "mape": 2.91113
+        }
+      }
+    },
+    "best_params": {}
+  },
+  "best_params": {},
+  "feature_means": [
+    272.44398477577363,
+    0.18237557688267703,
+    0.36475115376535416,
+    4.282956232045788e-05,
+    -0.0008217649886297285,
+    3.0014893264934637,
+    0.2857852060234983,
+    49.7405999140779,
+    49.747127294602834,
+    49.74396672557995,
+    1.338731514381235,
+    99.4811998281558
+  ]
+}

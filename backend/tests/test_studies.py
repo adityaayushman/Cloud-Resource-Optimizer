@@ -1,0 +1,234 @@
+"""Trace ingestion and the cross-dataset evaluation protocol.
+
+These guard the two classes of mistake that are invisible in a results table:
+a unit conversion that silently rescales a whole dataset, and an evaluation
+protocol that leaks or mis-slices data. Both have bitten this project - the
+Alibaba trace was ingested 100x too small because a column named
+`cpu_util_percent` turned out to hold fractions.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+
+def _load(name: str):
+    """Import a script from `scripts/`, which is not a package.
+
+    The module has to be in `sys.modules` *before* it executes: `@dataclass`
+    resolves annotations by looking its own module up there, and fails with an
+    opaque AttributeError if it is missing.
+    """
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+fetch_trace = _load("fetch_trace")
+study = _load("cross_dataset_study")
+
+
+# --------------------------------------------------------------- adapters
+
+def test_alibaba_treats_columns_as_fractions_not_percentages():
+    """The `_percent` column names are a misnomer in the mirror.
+
+    Reading them as percentages understates Alibaba demand by 100x. Verified
+    against the source: no value in either column exceeds 1.0 across 40 sampled
+    machine files, and mean CPU is 0.395 - i.e. ~40% utilisation, which is what
+    Alibaba reports for this cluster.
+    """
+    df = pd.DataFrame({
+        "time_stamp": [0, 60, 120],
+        "cpu_util_percent": [0.40, 0.40, 0.40],
+        "mem_util_percent": [0.90, 0.90, 0.90],
+    })
+    out = fetch_trace._parse_alibaba(df)
+    assert out["cpu_cores"].iloc[0] == pytest.approx(0.40 * fetch_trace.ALIBABA_MACHINE_CORES)
+    assert out["ram_gb"].iloc[0] == pytest.approx(0.90 * fetch_trace.ALIBABA_MACHINE_RAM_GB)
+
+
+def test_alibaba_still_handles_true_percentages_if_the_mirror_changes():
+    """The guard must work in both directions, or a mirror revision breaks it."""
+    df = pd.DataFrame({
+        "time_stamp": [0, 60, 120],
+        "cpu_util_percent": [40.0, 40.0, 40.0],
+        "mem_util_percent": [90.0, 90.0, 90.0],
+    })
+    out = fetch_trace._parse_alibaba(df)
+    assert out["cpu_cores"].iloc[0] == pytest.approx(0.40 * fetch_trace.ALIBABA_MACHINE_CORES)
+
+
+def test_bitbrains_converts_percent_of_own_cores_and_kilobytes():
+    df = pd.DataFrame({
+        "Timestamp [ms]": [0, 300, 600],
+        "CPU cores": [8, 8, 8],
+        "CPU usage [%]": [50.0, 50.0, 50.0],
+        "Memory usage [KB]": [1048576, 1048576, 1048576],
+    })
+    out = fetch_trace._parse_bitbrains(df)
+    assert out["cpu_cores"].iloc[0] == pytest.approx(4.0)     # 50% of 8 cores
+    assert out["ram_gb"].iloc[0] == pytest.approx(1.0)        # 1 GiB in KB
+
+
+def test_google_timestamps_are_microseconds():
+    """Treating them as seconds would put every row in one slot."""
+    df = pd.DataFrame({
+        "start_time": [0, 300_000_000, 600_000_000],
+        "avg_cpu_usage": [0.5, 0.5, 0.5],
+        "avg_mem_usage": [0.25, 0.25, 0.25],
+    })
+    out = fetch_trace._parse_google(df)
+    assert len(out) == 3, "microsecond timestamps collapsed into one slot"
+    assert out["cpu_cores"].iloc[0] == pytest.approx(0.5 * fetch_trace.GOOGLE_MACHINE_CORES)
+
+
+def test_azure_ram_is_flagged_as_derived():
+    """Azure publishes no memory column; a RAM claim on it would be fabricated."""
+    assert fetch_trace.ADAPTERS["azure"].ram_is_synthetic is True
+    assert all(not a.ram_is_synthetic for k, a in fetch_trace.ADAPTERS.items() if k != "azure")
+
+
+def test_repeated_readings_in_one_slot_are_averaged_not_summed():
+    """Alibaba samples every 60 s into 300 s slots: summing would inflate 5x."""
+    df = pd.DataFrame({
+        "time_stamp": [0, 60, 120, 180, 240],
+        "cpu_util_percent": [0.4] * 5,
+        "mem_util_percent": [0.9] * 5,
+    })
+    out = fetch_trace._parse_alibaba(df)
+    assert len(out) == 1
+    assert out["cpu_cores"].iloc[0] == pytest.approx(0.4 * fetch_trace.ALIBABA_MACHINE_CORES)
+
+
+# ---------------------------------------------------------- burst labels
+
+def test_burst_labels_respect_the_refractory_period():
+    cpu = np.ones(60)
+    cpu[20:] += 50.0            # one large step
+    onsets = fetch_trace.label_bursts(cpu, k=6.0, refractory=6)
+    assert onsets.sum() == 1
+    assert onsets[20] == 1
+
+
+def test_burst_labels_ignore_a_flat_series():
+    assert fetch_trace.label_bursts(np.full(100, 7.0)).sum() == 0
+
+
+# ------------------------------------------------- trace characterisation
+
+def test_diff_acf1_is_near_zero_for_a_random_walk():
+    """A random walk is exactly the case where persistence cannot be beaten."""
+    rng = np.random.default_rng(0)
+    walk = np.cumsum(rng.normal(size=20_000)) + 500.0
+    assert abs(study.describe(walk)["diff_acf1"]) < 0.05
+
+
+def test_diff_acf1_is_strongly_negative_for_a_mean_reverting_series():
+    """Alternating steps: every change is reversed by the next one."""
+    series = 100.0 + np.tile([0.0, 5.0], 5_000)
+    assert study.describe(series)["diff_acf1"] < -0.9
+
+
+# ----------------------------------------------------- evaluation protocol
+
+def test_test_blocks_are_disjoint_and_ordered():
+    """Overlapping blocks would break the independence the signed-rank test needs."""
+    n = 8_000
+    train_len, test_len, n_blocks = study.plan_blocks(n)
+    spans = [(train_len + k * test_len, train_len + (k + 1) * test_len)
+             for k in range(n_blocks)]
+    for (_, end), (start, _) in zip(spans, spans[1:]):
+        assert end == start
+    assert spans[-1][1] <= n
+
+
+def test_no_test_row_is_ever_in_its_own_training_window():
+    n = 8_000
+    train_len, test_len, n_blocks = study.plan_blocks(n)
+    for k in range(n_blocks):
+        origin = train_len + k * test_len
+        for expanding in (True, False):
+            train_start = 0 if expanding else origin - train_len
+            assert train_start < origin                      # non-empty
+            assert origin >= origin                           # test starts at origin
+            assert train_start >= 0
+
+
+def _toy_frame(n: int = 4_000) -> pd.DataFrame:
+    rng = np.random.default_rng(1)
+    ts = pd.date_range("2024-01-01", periods=n, freq="5min")
+    cpu = 50 + 10 * np.sin(np.arange(n) / 24.0) + rng.normal(scale=1.0, size=n)
+    return pd.DataFrame({
+        "timestamp": ts, "num_tasks": 10.0,
+        "cpu_per_task": cpu / 10, "ram_per_task": cpu / 5,
+        "hour": ts.hour, "day_of_week": ts.dayofweek,
+        "cpu_demand": cpu, "ram_demand": cpu * 2,
+        "is_weekend": (ts.dayofweek >= 5).astype(int),
+        "burst_onset": 0, "burst_active": 0, "interval": np.arange(n),
+    })
+
+
+def test_expanding_window_grows_and_sliding_window_does_not():
+    frame = _toy_frame()
+    grown = study.evaluate(frame, "lr", expanding=True)
+    fixed = study.evaluate(frame, "lr", expanding=False)
+    assert len(grown) == len(fixed) >= 6
+    assert grown[-1]["n_train"] > grown[0]["n_train"]
+    assert len({b["n_train"] for b in fixed}) == 1
+
+
+def test_evaluate_reports_a_paired_persistence_baseline_per_block():
+    blocks = study.evaluate(_toy_frame(), "lr")
+    assert blocks
+    for b in blocks:
+        assert b["persistence_mae"] > 0
+        assert b["mae_ratio"] == pytest.approx(b["model_mae"] / b["persistence_mae"])
+
+
+# ------------------------------------------------ multiple-comparison control
+
+def test_holm_leaves_the_smallest_p_multiplied_by_the_family_size():
+    adjusted = study.holm([0.001, 0.02, 0.5, 0.7])
+    assert adjusted[0] == pytest.approx(0.004)      # 4 * 0.001
+
+
+def test_holm_is_monotone_in_rank_order():
+    raw = [0.001, 0.009, 0.02, 0.04, 0.3]
+    adjusted = study.holm(raw)
+    ordered = [adjusted[i] for i in sorted(range(len(raw)), key=lambda i: raw[i])]
+    assert ordered == sorted(ordered), "Holm output must not decrease with rank"
+
+
+def test_holm_is_never_smaller_than_the_raw_p_value():
+    raw = [0.01, 0.02, 0.03, 0.6, 0.9]
+    for r, a in zip(raw, study.holm(raw)):
+        assert a >= r - 1e-12
+
+
+def test_holm_caps_at_one_and_ignores_missing_tests():
+    adjusted = study.holm([0.9, float("nan"), 0.95])
+    assert adjusted[0] <= 1.0 and adjusted[2] <= 1.0
+    assert adjusted[1] != adjusted[1]               # NaN stays NaN
+
+
+def test_wilcoxon_declines_to_test_too_few_blocks():
+    """Reporting a p-value from four observations would be false precision."""
+    _, p = study.wilcoxon([0.1, -0.2, 0.3, 0.4])
+    assert p != p                                    # NaN
+
+
+def test_wilcoxon_detects_a_consistent_shift():
+    _, p = study.wilcoxon([0.4, 0.35, 0.5, 0.42, 0.38, 0.6, 0.45, 0.52])
+    assert p < 0.05

@@ -1,0 +1,466 @@
+{
+  "generated_at": "2026-09-05T02:32:01",
+  "dataset": {
+    "path": "workload_google.csv",
+    "rows": 8618,
+    "columns": [
+      "timestamp",
+      "num_tasks",
+      "cpu_per_task",
+      "ram_per_task",
+      "hour",
+      "day_of_week",
+      "cpu_demand",
+      "ram_demand",
+      "is_weekend",
+      "burst_onset",
+      "interval",
+      "burst_active"
+    ],
+    "span_start": "2013-08-12 00:00:00",
+    "span_end": "2013-09-10 22:05:00"
+  },
+  "predictors": {
+    "xgboost": {
+      "algo": "xgboost",
+      "horizon": 1,
+      "n_train": 6029,
+      "n_val": 1292,
+      "n_test": 1292,
+      "targets": {
+        "cpu_demand_t+1": {
+          "validation": {
+            "r2": 0.57216,
+            "mae": 2.9663,
+            "rmse": 3.81156,
+            "mape": 7.7954
+          },
+          "test": {
+            "r2": 0.6869,
+            "mae": 2.66637,
+            "rmse": 3.40913,
+            "mape": 6.64911
+          },
+          "naive_persistence_test": {
+            "r2": 0.58942,
+            "mae": 3.00458,
+            "rmse": 3.90391,
+            "mape": 7.67415
+          }
+        },
+        "ram_demand_t+1": {
+          "validation": {
+            "r2": -1.26276,
+            "mae": 6.42174,
+            "rmse": 8.03904,
+            "mape": 5.45098
+          },
+          "test": {
+            "r2": -2.40664,
+            "mae": 4.71367,
+            "rmse": 9.36381,
+            "mape": 4.33963
+          },
+          "naive_persistence_test": {
+            "r2": 0.31973,
+            "mae": 3.78432,
+            "rmse": 4.18436,
+            "mape": 3.28919
+          }
+        }
+      },
+      "best_params": {},
+      "train_seconds": 7.02
+    },
+    "rf": {
+      "algo": "rf",
+      "horizon": 1,
+      "n_train": 6029,
+      "n_val": 1292,
+      "n_test": 1292,
+      "targets": {
+        "cpu_demand_t+1": {
+          "validation": {
+            "r2": 0.60053,
+            "mae": 2.78753,
+            "rmse": 3.68298,
+            "mape": 7.33081
+          },
+          "test": {
+            "r2": 0.72431,
+            "mae": 2.48518,
+            "rmse": 3.19896,
+            "mape": 6.26304
+          },
+          "naive_persistence_test": {
+            "r2": 0.58942,
+            "mae": 3.00458,
+            "rmse": 3.90391,
+            "mape": 7.67415
+          }
+        },
+        "ram_demand_t+1": {
+          "validation": {
+            "r2": -0.56503,
+            "mae": 5.28928,
+            "rmse": 6.6857,
+            "mape": 4.46891
+          },
+          "test": {
+            "r2": -2.15404,
+            "mae": 4.69475,
+            "rmse": 9.00997,
+            "mape": 4.30765
+          },
+          "naive_persistence_test": {
+            "r2": 0.31973,
+            "mae": 3.78432,
+            "rmse": 4.18436,
+            "mape": 3.28919
+          }
+        }
+      },
+      "best_params": {},
+      "train_seconds": 91.7
+    },
+    "lr": {
+      "algo": "lr",
+      "horizon": 1,
+      "n_train": 6029,
+      "n_val": 1292,
+      "n_test": 1292,
+      "targets": {
+        "cpu_demand_t+1": {
+          "validation": {
+            "r2": 0.62582,
+            "mae": 2.64833,
+            "rmse": 3.56453,
+            "mape": 7.05033
+          },
+          "test": {
+            "r2": 0.75422,
+            "mae": 2.35518,
+            "rmse": 3.02045,
+            "mape": 6.02133
+          },
+          "naive_persistence_test": {
+            "r2": 0.58942,
+            "mae": 3.00458,
+            "rmse": 3.90391,
+            "mape": 7.67415
+          }
+        },
+        "ram_demand_t+1": {
+          "validation": {
+            "r2": -0.04414,
+            "mae": 4.40582,
+            "rmse": 5.46091,
+            "mape": 3.74067
+          },
+          "test": {
+            "r2": 0.3223,
+            "mae": 3.40492,
+            "rmse": 4.17647,
+            "mape": 3.01053
+          },
+          "naive_persistence_test": {
+            "r2": 0.31973,
+            "mae": 3.78432,
+            "rmse": 4.18436,
+            "mape": 3.28919
+          }
+        }
+      },
+      "best_params": {},
+      "train_seconds": 0.38
+    }
+  },
+  "anomaly": {
+    "isolation_forest": {
+      "method": "isolation_forest",
+      "features": [
+        "cpu_demand",
+        "ram_demand",
+        "cpu_delta",
+        "cpu_ratio",
+        "ram_ratio"
+      ],
+      "n_train": 8618,
+      "flagged_in_training": 69,
+      "flagged_rate": 0.008
+    },
+    "zscore": {
+      "method": "zscore",
+      "features": [
+        "cpu_demand",
+        "ram_demand",
+        "cpu_delta",
+        "cpu_ratio",
+        "ram_ratio"
+      ],
+      "n_train": 8618,
+      "flagged_in_training": 159,
+      "flagged_rate": 0.0184
+    }
+  },
+  "rl": {
+    "episodes": 12,
+    "ticks_per_episode": 288,
+    "eval_seed": 4242,
+    "eval_curve": [
+      {
+        "episode": 0,
+        "reward": 0.3769,
+        "utilisation": 79.41,
+        "cost_per_day": 35.63,
+        "task_failure_rate": 3.779
+      },
+      {
+        "episode": 1,
+        "reward": 0.1249,
+        "utilisation": 88.02,
+        "cost_per_day": 29.61,
+        "task_failure_rate": 9.406
+      },
+      {
+        "episode": 2,
+        "reward": 0.8483,
+        "utilisation": 74.91,
+        "cost_per_day": 36.53,
+        "task_failure_rate": 0.326
+      },
+      {
+        "episode": 3,
+        "reward": 0.8292,
+        "utilisation": 73.88,
+        "cost_per_day": 37.59,
+        "task_failure_rate": 0.099
+      },
+      {
+        "episode": 4,
+        "reward": 0.8463,
+        "utilisation": 75.01,
+        "cost_per_day": 36.61,
+        "task_failure_rate": 0.393
+      },
+      {
+        "episode": 5,
+        "reward": 0.7177,
+        "utilisation": 79.16,
+        "cost_per_day": 34.27,
+        "task_failure_rate": 1.864
+      },
+      {
+        "episode": 6,
+        "reward": 0.5411,
+        "utilisation": 81.08,
+        "cost_per_day": 32.56,
+        "task_failure_rate": 4.463
+      },
+      {
+        "episode": 7,
+        "reward": 0.5461,
+        "utilisation": 81.15,
+        "cost_per_day": 32.75,
+        "task_failure_rate": 4.227
+      },
+      {
+        "episode": 8,
+        "reward": 0.7227,
+        "utilisation": 83.4,
+        "cost_per_day": 33.61,
+        "task_failure_rate": 1.746
+      },
+      {
+        "episode": 9,
+        "reward": 0.6368,
+        "utilisation": 82.43,
+        "cost_per_day": 32.99,
+        "task_failure_rate": 2.996
+      },
+      {
+        "episode": 10,
+        "reward": 0.7238,
+        "utilisation": 83.37,
+        "cost_per_day": 33.47,
+        "task_failure_rate": 1.842
+      },
+      {
+        "episode": 11,
+        "reward": 0.5049,
+        "utilisation": 80.49,
+        "cost_per_day": 32.6,
+        "task_failure_rate": 4.956
+      },
+      {
+        "episode": 12,
+        "reward": 0.5494,
+        "utilisation": 81.27,
+        "cost_per_day": 32.67,
+        "task_failure_rate": 4.259
+      }
+    ],
+    "selected_episode": 2,
+    "selection": "best held-out evaluation reward, not final weights",
+    "training_reward_curve": [
+      0.5044,
+      0.7502,
+      0.7679,
+      0.7612,
+      0.7624,
+      0.6928,
+      0.7827,
+      0.6867,
+      0.6694,
+      0.6737,
+      0.5376,
+      0.515
+    ],
+    "before": {
+      "episode": 0,
+      "reward": 0.3769,
+      "utilisation": 79.41,
+      "cost_per_day": 35.63,
+      "task_failure_rate": 3.779
+    },
+    "after": {
+      "episode": 2,
+      "reward": 0.8483,
+      "utilisation": 74.91,
+      "cost_per_day": 36.53,
+      "task_failure_rate": 0.326
+    },
+    "reward_improvement": 0.4714,
+    "cost_improvement_pct": 2.53,
+    "final_epsilon": 0.1772,
+    "learn_steps": 3201,
+    "greedy_evaluation": {
+      "episode": 2,
+      "reward": 0.8483,
+      "utilisation": 74.91,
+      "cost_per_day": 36.53,
+      "task_failure_rate": 0.326
+    }
+  },
+  "qlearning": {
+    "episodes": 12,
+    "q_table_size": 41,
+    "eval_seed": 4242,
+    "eval_curve": [
+      {
+        "reward": -0.1789,
+        "utilisation": 83.98,
+        "cost_per_day": 33.93,
+        "task_failure_rate": 13.412,
+        "episode": 0
+      },
+      {
+        "reward": 0.7752,
+        "utilisation": 73.55,
+        "cost_per_day": 42.07,
+        "task_failure_rate": 0.387,
+        "episode": 1
+      },
+      {
+        "reward": 0.7752,
+        "utilisation": 73.55,
+        "cost_per_day": 42.07,
+        "task_failure_rate": 0.387,
+        "episode": 2
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 3
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 4
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 5
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 6
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 7
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 8
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 9
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 10
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 11
+      },
+      {
+        "reward": 0.7791,
+        "utilisation": 74.0,
+        "cost_per_day": 42.38,
+        "task_failure_rate": 0.253,
+        "episode": 12
+      }
+    ],
+    "selected_episode": 3,
+    "before": {
+      "reward": -0.1789,
+      "utilisation": 83.98,
+      "cost_per_day": 33.93,
+      "task_failure_rate": 13.412,
+      "episode": 0
+    },
+    "after": {
+      "reward": 0.7791,
+      "utilisation": 74.0,
+      "cost_per_day": 42.38,
+      "task_failure_rate": 0.253,
+      "episode": 3
+    },
+    "greedy_evaluation": {
+      "reward": 0.7791,
+      "utilisation": 74.0,
+      "cost_per_day": 42.38,
+      "task_failure_rate": 0.253,
+      "episode": 3
+    }
+  },
+  "total_seconds": 456.14
+}
