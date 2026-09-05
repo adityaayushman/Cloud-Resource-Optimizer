@@ -1,0 +1,619 @@
+{
+  "generated_at": "2026-09-05T02:43:12",
+  "workload": {
+    "kind": "real_trace",
+    "source": "workload_google.csv",
+    "reference_cpu_mean": 40.48,
+    "ram_cpu_ratio": 3.121,
+    "max_fleet": 40
+  },
+  "protocol": {
+    "ticks": 288,
+    "tick_seconds": 300,
+    "simulated_hours": 24.0,
+    "repeats": 3,
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "baseline": "ml_predictive",
+    "note": "All arms run on an identical workload trace per seed. Values are means over seeds with the sample standard deviation reported alongside. Deltas are relative to the ML-prediction-only baseline."
+  },
+  "rows": [
+    {
+      "strategy": "static_rules",
+      "label": "Static rule-based (negative control)",
+      "utilisation": 67.793,
+      "utilisation_sd": 11.892,
+      "cost_per_day": 42.01,
+      "cost_per_day_sd": 0.0,
+      "response_latency_s": 390.0,
+      "response_latency_s_sd": 597.558,
+      "task_failure_rate": 2.231,
+      "task_failure_rate_sd": 3.849,
+      "sla_compliance": 80.207,
+      "sla_compliance_sd": 33.98,
+      "co2_kg": 10.385,
+      "co2_kg_sd": 0.647,
+      "mean_fleet_size": 9.0,
+      "mean_fleet_size_sd": 0.0,
+      "delta_utilisation_pct": -5.6,
+      "delta_cost_per_day_pct": -1.1,
+      "delta_response_latency_s_pct": 169.0
+    },
+    {
+      "strategy": "threshold_reactive",
+      "label": "Threshold reactive autoscaling",
+      "utilisation": 70.913,
+      "utilisation_sd": 2.679,
+      "cost_per_day": 13.35,
+      "cost_per_day_sd": 8.882,
+      "response_latency_s": 59765.0,
+      "response_latency_s_sd": 46211.116,
+      "task_failure_rate": 67.553,
+      "task_failure_rate_sd": 17.106,
+      "sla_compliance": 3.127,
+      "sla_compliance_sd": 5.416,
+      "co2_kg": 4.533,
+      "co2_kg_sd": 3.376,
+      "mean_fleet_size": 7.503,
+      "mean_fleet_size_sd": 6.036,
+      "delta_utilisation_pct": -1.3,
+      "delta_cost_per_day_pct": -68.6,
+      "delta_response_latency_s_pct": 41117.2
+    },
+    {
+      "strategy": "ml_predictive",
+      "label": "ML prediction only (baseline)",
+      "utilisation": 71.82,
+      "utilisation_sd": 2.049,
+      "cost_per_day": 42.48,
+      "cost_per_day_sd": 7.792,
+      "response_latency_s": 145.0,
+      "response_latency_s_sd": 173.205,
+      "task_failure_rate": 0.264,
+      "task_failure_rate_sd": 0.047,
+      "sla_compliance": 94.677,
+      "sla_compliance_sd": 1.781,
+      "co2_kg": 12.314,
+      "co2_kg_sd": 2.706,
+      "mean_fleet_size": 15.483,
+      "mean_fleet_size_sd": 3.857,
+      "delta_utilisation_pct": 0.0,
+      "delta_cost_per_day_pct": 0.0,
+      "delta_response_latency_s_pct": 0.0
+    },
+    {
+      "strategy": "multicloud_only",
+      "label": "ML prediction + multi-cloud selection",
+      "utilisation": 71.82,
+      "utilisation_sd": 2.049,
+      "cost_per_day": 36.103,
+      "cost_per_day_sd": 6.938,
+      "response_latency_s": 145.0,
+      "response_latency_s_sd": 173.205,
+      "task_failure_rate": 0.264,
+      "task_failure_rate_sd": 0.047,
+      "sla_compliance": 94.677,
+      "sla_compliance_sd": 1.781,
+      "co2_kg": 12.152,
+      "co2_kg_sd": 2.696,
+      "mean_fleet_size": 15.483,
+      "mean_fleet_size_sd": 3.857,
+      "delta_utilisation_pct": 0.0,
+      "delta_cost_per_day_pct": -15.0,
+      "delta_response_latency_s_pct": 0.0
+    },
+    {
+      "strategy": "q_learning",
+      "label": "Tabular Q-learning allocation",
+      "utilisation": 85.12,
+      "utilisation_sd": 0.865,
+      "cost_per_day": 32.223,
+      "cost_per_day_sd": 5.629,
+      "response_latency_s": 412.667,
+      "response_latency_s_sd": 17.978,
+      "task_failure_rate": 11.257,
+      "task_failure_rate_sd": 0.42,
+      "sla_compliance": 7.87,
+      "sla_compliance_sd": 4.069,
+      "co2_kg": 10.064,
+      "co2_kg_sd": 1.941,
+      "mean_fleet_size": 10.77,
+      "mean_fleet_size_sd": 1.965,
+      "delta_utilisation_pct": 18.5,
+      "delta_cost_per_day_pct": -24.1,
+      "delta_response_latency_s_pct": 184.6
+    },
+    {
+      "strategy": "rl_only",
+      "label": "DQN allocation only (single provider)",
+      "utilisation": 80.22,
+      "utilisation_sd": 3.002,
+      "cost_per_day": 37.803,
+      "cost_per_day_sd": 7.035,
+      "response_latency_s": 245.0,
+      "response_latency_s_sd": 173.205,
+      "task_failure_rate": 1.659,
+      "task_failure_rate_sd": 0.723,
+      "sla_compliance": 71.757,
+      "sla_compliance_sd": 5.729,
+      "co2_kg": 11.109,
+      "co2_kg_sd": 2.307,
+      "mean_fleet_size": 11.603,
+      "mean_fleet_size_sd": 2.622,
+      "delta_utilisation_pct": 11.7,
+      "delta_cost_per_day_pct": -11.0,
+      "delta_response_latency_s_pct": 69.0
+    },
+    {
+      "strategy": "full",
+      "label": "All components combined (ML + DQN + multi-cloud)",
+      "utilisation": 76.15,
+      "utilisation_sd": 1.92,
+      "cost_per_day": 34.197,
+      "cost_per_day_sd": 6.816,
+      "response_latency_s": 345.0,
+      "response_latency_s_sd": 0.0,
+      "task_failure_rate": 0.663,
+      "task_failure_rate_sd": 0.504,
+      "sla_compliance": 89.697,
+      "sla_compliance_sd": 6.231,
+      "co2_kg": 11.177,
+      "co2_kg_sd": 1.918,
+      "mean_fleet_size": 11.493,
+      "mean_fleet_size_sd": 1.544,
+      "delta_utilisation_pct": 6.0,
+      "delta_cost_per_day_pct": -19.5,
+      "delta_response_latency_s_pct": 137.9
+    }
+  ],
+  "raw": {
+    "static_rules": [
+      {
+        "utilisation_mean": 57.56,
+        "utilisation_p95": 68.36,
+        "cost_total": 42.0147,
+        "cost_per_day": 42.01,
+        "tasks_submitted": 24862,
+        "tasks_failed": 0,
+        "task_failure_rate": 0.0,
+        "response_latency_s": 45.0,
+        "under_provisioned_episodes": 0,
+        "sla_compliance": 100.0,
+        "energy_kwh": 24.5599,
+        "co2_kg": 9.824,
+        "mean_fleet_size": 9.0,
+        "final_by_provider": {
+          "AWS": 9
+        },
+        "elapsed_hours": 24.0
+      },
+      {
+        "utilisation_mean": 80.84,
+        "utilisation_p95": 94.66,
+        "cost_total": 42.0147,
+        "cost_per_day": 42.01,
+        "tasks_submitted": 37431,
+        "tasks_failed": 2499,
+        "task_failure_rate": 6.676,
+        "response_latency_s": 1080.0,
+        "under_provisioned_episodes": 20,
+        "sla_compliance": 40.97,
+        "energy_kwh": 27.7307,
+        "co2_kg": 11.0923,
+        "mean_fleet_size": 9.0,
+        "final_by_provider": {
+          "AWS": 9
+        },
+        "elapsed_hours": 24.0
+      },
+      {
+        "utilisation_mean": 64.98,
+        "utilisation_p95": 75.79,
+        "cost_total": 42.0147,
+        "cost_per_day": 42.01,
+        "tasks_submitted": 28089,
+        "tasks_failed": 5,
+        "task_failure_rate": 0.018,
+        "response_latency_s": 45.0,
+        "under_provisioned_episodes": 0,
+        "sla_compliance": 99.65,
+        "energy_kwh": 25.5993,
+        "co2_kg": 10.2397,
+        "mean_fleet_size": 9.0,
+        "final_by_provider": {
+          "AWS": 9
+        },
+        "elapsed_hours": 24.0
+      }
+    ],
+    "threshold_reactive": [
+      {
+        "utilisation_mean": 69.2,
+        "utilisation_p95": 76.3,
+        "cost_total": 7.6048,
+        "cost_per_day": 7.6,
+        "tasks_submitted": 24862,
+        "tasks_failed": 19344,
+        "task_failure_rate": 77.805,
+        "response_latency_s": 86445.0,
+        "under_provisioned_episodes": 1,
+        "sla_compliance": 0.0,
+        "energy_kwh": 5.9161,
+        "co2_kg": 2.3664,
+        "mean_fleet_size": 3.54,
+        "final_by_provider": {
+          "AWS": 5
+        },
+        "elapsed_hours": 24.0
+      },
+      {
+        "utilisation_mean": 74.0,
+        "utilisation_p95": 85.28,
+        "cost_total": 23.5838,
+        "cost_per_day": 23.58,
+        "tasks_submitted": 37431,
+        "tasks_failed": 17894,
+        "task_failure_rate": 47.805,
+        "response_latency_s": 6405.0,
+        "under_provisioned_episodes": 10,
+        "sla_compliance": 9.38,
+        "energy_kwh": 21.0585,
+        "co2_kg": 8.4234,
+        "mean_fleet_size": 14.45,
+        "final_by_provider": {
+          "AWS": 35
+        },
+        "elapsed_hours": 24.0
+      },
+      {
+        "utilisation_mean": 69.54,
+        "utilisation_p95": 79.84,
+        "cost_total": 8.868,
+        "cost_per_day": 8.87,
+        "tasks_submitted": 28089,
+        "tasks_failed": 21642,
+        "task_failure_rate": 77.048,
+        "response_latency_s": 86445.0,
+        "under_provisioned_episodes": 1,
+        "sla_compliance": 0.0,
+        "energy_kwh": 7.0253,
+        "co2_kg": 2.8101,
+        "mean_fleet_size": 4.52,
+        "final_by_provider": {
+          "AWS": 7
+        },
+        "elapsed_hours": 24.0
+      }
+    ],
+    "ml_predictive": [
+      {
+        "utilisation_mean": 73.42,
+        "utilisation_p95": 84.69,
+        "cost_total": 36.226,
+        "cost_per_day": 36.23,
+        "tasks_submitted": 24862,
+        "tasks_failed": 62,
+        "task_failure_rate": 0.249,
+        "response_latency_s": 45.0,
+        "under_provisioned_episodes": 0,
+        "sla_compliance": 95.14,
+        "energy_kwh": 26.1519,
+        "co2_kg": 10.4607,
+        "mean_fleet_size": 13.47,
+        "final_by_provider": {
+          "AWS": 15
+        },
+        "elapsed_hours": 24.0
+      },
+      {
+        "utilisation_mean": 72.53,
+        "utilisation_p95": 85.01,
+        "cost_total": 51.2121,
+        "cost_per_day": 51.21,
+        "tasks_submitted": 37431,
+        "tasks_failed": 85,
+        "task_failure_rate": 0.227,
+        "response_latency_s": 345.0,
+        "under_provisioned_episodes": 1,
+        "sla_compliance": 96.18,
+        "energy_kwh": 38.5467,
+        "co2_kg": 15.4187,
+        "mean_fleet_size": 19.93,
+        "final_by_provider": {
+          "AWS": 28
+        },
+        "elapsed_hours": 24.0
+      },
+      {
+        "utilisation_mean": 69.51,
+        "utilisation_p95": 82.94,
+        "cost_total": 39.9958,
+        "cost_per_day": 40.0,
+        "tasks_submitted": 28089,
+        "tasks_failed": 89,
+        "task_failure_rate": 0.317,
+        "response_latency_s": 45.0,
+        "under_provisioned_episodes": 0,
+        "sla_compliance": 92.71,
+        "energy_kwh": 27.6532,
+        "co2_kg": 11.0613,
+        "mean_fleet_size": 13.05,
+        "final_by_provider": {
+          "AWS": 14
+        },
+        "elapsed_hours": 24.0
+      }
+    ],
+    "multicloud_only": [
+      {
+        "utilisation_mean": 73.42,
+        "utilisation_p95": 84.69,
+        "cost_total": 30.6091,
+        "cost_per_day": 30.61,
+        "tasks_submitted": 24862,
+        "tasks_failed": 62,
+        "task_failure_rate": 0.249,
+        "response_latency_s": 45.0,
+        "under_provisioned_episodes": 0,
+        "sla_compliance": 95.14,
+        "energy_kwh": 26.1162,
+        "co2_kg": 10.4465,
+        "mean_fleet_size": 13.47,
+        "final_by_provider": {
+          "GCP": 12,
+          "Azure": 1,
+          "AWS": 2
+        },
+        "elapsed_hours": 24.0
+      },
+      {
+        "utilisation_mean": 72.53,
+        "utilisation_p95": 85.01,
+        "cost_total": 43.9047,
+        "cost_per_day": 43.9,
+        "tasks_submitted": 37431,
+        "tasks_failed": 85,
+        "task_failure_rate": 0.227,
+        "response_latency_s": 345.0,
+        "under_provisioned_episodes": 1,
+        "sla_compliance": 96.18,
+        "energy_kwh": 38.1514,
+        "co2_kg": 15.2605,
+        "mean_fleet_size": 19.93,
+        "final_by_provider": {
+          "GCP": 25,
+          "AWS": 3
+        },
+        "elapsed_hours": 24.0
+      },
+      {
+        "utilisation_mean": 69.51,
+        "utilisation_p95": 82.94,
+        "cost_total": 33.8043,
+        "cost_per_day": 33.8,
+        "tasks_submitted": 28089,
+        "tasks_failed": 89,
+        "task_failure_rate": 0.317,
+        "response_latency_s": 45.0,
+        "under_provisioned_episodes": 0,
+        "sla_compliance": 92.71,
+        "energy_kwh": 26.875,
+        "co2_kg": 10.75,
+        "mean_fleet_size": 13.05,
+        "final_by_provider": {
+          "GCP": 14
+        },
+        "elapsed_hours": 24.0
+      }
+    ],
+    "q_learning": [
+      {
+        "utilisation_mean": 85.99,
+        "utilisation_p95": 93.08,
+        "cost_total": 27.5732,
+        "cost_per_day": 27.57,
+        "tasks_submitted": 24862,
+        "tasks_failed": 2720,
+        "task_failure_rate": 10.94,
+        "response_latency_s": 392.0,
+        "under_provisioned_episodes": 83,
+        "sla_compliance": 12.5,
+        "energy_kwh": 21.4606,
+        "co2_kg": 8.5842,
+        "mean_fleet_size": 9.47,
+        "final_by_provider": {
+          "AWS": 10
+        },
+        "elapsed_hours": 24.0,
+        "q_table_size": 6,
+        "mean_reward": 0.0225
+      },
+      {
+        "utilisation_mean": 84.26,
+        "utilisation_p95": 93.35,
+        "cost_total": 38.4835,
+        "cost_per_day": 38.48,
+        "tasks_submitted": 37431,
+        "tasks_failed": 4154,
+        "task_failure_rate": 11.098,
+        "response_latency_s": 421.3,
+        "under_provisioned_episodes": 59,
+        "sla_compliance": 6.25,
+        "energy_kwh": 30.6533,
+        "co2_kg": 12.2613,
+        "mean_fleet_size": 13.03,
+        "final_by_provider": {
+          "AWS": 16
+        },
+        "elapsed_hours": 24.0,
+        "q_table_size": 11,
+        "mean_reward": -0.0079
+      },
+      {
+        "utilisation_mean": 85.11,
+        "utilisation_p95": 90.81,
+        "cost_total": 30.6162,
+        "cost_per_day": 30.62,
+        "tasks_submitted": 28089,
+        "tasks_failed": 3296,
+        "task_failure_rate": 11.734,
+        "response_latency_s": 424.7,
+        "under_provisioned_episodes": 64,
+        "sla_compliance": 4.86,
+        "energy_kwh": 23.3654,
+        "co2_kg": 9.3462,
+        "mean_fleet_size": 9.81,
+        "final_by_provider": {
+          "AWS": 10
+        },
+        "elapsed_hours": 24.0,
+        "q_table_size": 7,
+        "mean_reward": -0.0689
+      }
+    ],
+    "rl_only": [
+      {
+        "utilisation_mean": 81.76,
+        "utilisation_p95": 91.86,
+        "cost_total": 31.8552,
+        "cost_per_day": 31.86,
+        "tasks_submitted": 24862,
+        "tasks_failed": 599,
+        "task_failure_rate": 2.409,
+        "response_latency_s": 345.0,
+        "under_provisioned_episodes": 10,
+        "sla_compliance": 67.01,
+        "energy_kwh": 23.9948,
+        "co2_kg": 9.5979,
+        "mean_fleet_size": 10.81,
+        "final_by_provider": {
+          "AWS": 11
+        },
+        "elapsed_hours": 24.0,
+        "dqn_epsilon": 0.1772,
+        "dqn_learn_steps": 3201,
+        "mean_reward": 0.6547
+      },
+      {
+        "utilisation_mean": 82.14,
+        "utilisation_p95": 91.31,
+        "cost_total": 45.5713,
+        "cost_per_day": 45.57,
+        "tasks_submitted": 37431,
+        "tasks_failed": 362,
+        "task_failure_rate": 0.967,
+        "response_latency_s": 345.0,
+        "under_provisioned_episodes": 3,
+        "sla_compliance": 78.12,
+        "energy_kwh": 34.4124,
+        "co2_kg": 13.765,
+        "mean_fleet_size": 14.53,
+        "final_by_provider": {
+          "AWS": 18
+        },
+        "elapsed_hours": 24.0,
+        "dqn_epsilon": 0.1772,
+        "dqn_learn_steps": 3201,
+        "mean_reward": 0.7559
+      },
+      {
+        "utilisation_mean": 76.76,
+        "utilisation_p95": 87.31,
+        "cost_total": 35.9817,
+        "cost_per_day": 35.98,
+        "tasks_submitted": 28089,
+        "tasks_failed": 450,
+        "task_failure_rate": 1.602,
+        "response_latency_s": 45.0,
+        "under_provisioned_episodes": 0,
+        "sla_compliance": 70.14,
+        "energy_kwh": 24.9114,
+        "co2_kg": 9.9646,
+        "mean_fleet_size": 9.47,
+        "final_by_provider": {
+          "AWS": 9
+        },
+        "elapsed_hours": 24.0,
+        "dqn_epsilon": 0.1772,
+        "dqn_learn_steps": 3201,
+        "mean_reward": 0.6605
+      }
+    ],
+    "full": [
+      {
+        "utilisation_mean": 78.21,
+        "utilisation_p95": 91.86,
+        "cost_total": 28.692,
+        "cost_per_day": 28.69,
+        "tasks_submitted": 24862,
+        "tasks_failed": 309,
+        "task_failure_rate": 1.243,
+        "response_latency_s": 345.0,
+        "under_provisioned_episodes": 10,
+        "sla_compliance": 82.64,
+        "energy_kwh": 24.7291,
+        "co2_kg": 9.8916,
+        "mean_fleet_size": 11.15,
+        "final_by_provider": {
+          "GCP": 10,
+          "Azure": 1
+        },
+        "elapsed_hours": 24.0,
+        "dqn_epsilon": 0.1772,
+        "dqn_learn_steps": 3201,
+        "mean_reward": 0.7438
+      },
+      {
+        "utilisation_mean": 75.83,
+        "utilisation_p95": 88.5,
+        "cost_total": 41.8153,
+        "cost_per_day": 41.82,
+        "tasks_submitted": 37431,
+        "tasks_failed": 125,
+        "task_failure_rate": 0.334,
+        "response_latency_s": 345.0,
+        "under_provisioned_episodes": 3,
+        "sla_compliance": 94.44,
+        "energy_kwh": 33.4537,
+        "co2_kg": 13.3815,
+        "mean_fleet_size": 13.18,
+        "final_by_provider": {
+          "GCP": 14,
+          "Azure": 4,
+          "AWS": 2
+        },
+        "elapsed_hours": 24.0,
+        "dqn_epsilon": 0.1772,
+        "dqn_learn_steps": 3201,
+        "mean_reward": 0.7851
+      },
+      {
+        "utilisation_mean": 74.41,
+        "utilisation_p95": 83.69,
+        "cost_total": 32.081,
+        "cost_per_day": 32.08,
+        "tasks_submitted": 28089,
+        "tasks_failed": 116,
+        "task_failure_rate": 0.413,
+        "response_latency_s": 345.0,
+        "under_provisioned_episodes": 1,
+        "sla_compliance": 92.01,
+        "energy_kwh": 25.6413,
+        "co2_kg": 10.2565,
+        "mean_fleet_size": 10.15,
+        "final_by_provider": {
+          "GCP": 10,
+          "AWS": 1
+        },
+        "elapsed_hours": 24.0,
+        "dqn_epsilon": 0.1772,
+        "dqn_learn_steps": 3201,
+        "mean_reward": 0.7802
+      }
+    ]
+  },
+  "elapsed_seconds": 211.73
+}
