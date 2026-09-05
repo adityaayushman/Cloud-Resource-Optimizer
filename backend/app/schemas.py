@@ -13,7 +13,7 @@ class PredictRequest(BaseModel):
     ram_per_task: float = Field(0.85, gt=0, le=256)
     hour: int = Field(..., ge=0, le=23)
     day_of_week: int = Field(..., ge=0, le=6)
-    algo: Literal["xgboost", "rf", "lr"] = "xgboost"
+    algo: Literal["xgboost", "rf", "lr", "persistence"] = "xgboost"
     explain: bool = True
 
 
@@ -26,7 +26,7 @@ class PredictResponse(BaseModel):
 
 
 class SessionCreateRequest(BaseModel):
-    predictor_algo: Literal["xgboost", "rf", "lr"] = "xgboost"
+    predictor_algo: Literal["xgboost", "rf", "lr", "persistence"] = "xgboost"
     anomaly_method: Literal["isolation_forest", "zscore"] = "isolation_forest"
     strategy: Literal[
         "static_rules", "threshold_reactive", "ml_predictive",

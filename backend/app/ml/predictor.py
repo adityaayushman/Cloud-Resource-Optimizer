@@ -27,7 +27,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, r2_score
 
-Algo = Literal["xgboost", "rf", "lr"]
+Algo = Literal["xgboost", "rf", "lr", "persistence"]
 
 FEATURES = [
     "num_tasks",
@@ -51,6 +51,46 @@ FEATURES = [
 HORIZON = 1
 TARGETS = ("target_cpu", "target_ram")
 TARGET_LABELS = {"target_cpu": "cpu_demand_t+1", "target_ram": "ram_demand_t+1"}
+
+
+class PersistenceRegressor:
+    """"Next interval equals this one", as a first-class predictor.
+
+    This exists because the cross-dataset study found workloads where persistence
+    is the *correct engineering answer* - on Bitbrains no learned model beats it
+    at any horizon - and the system had no way to ship that conclusion.
+    Persistence was only ever a number in a report, so the recommendation "use
+    persistence on this workload" was unactionable.
+
+    **It does not read `cpu_lag_1`.** That column is demand at t-1, and the target
+    is demand at t+1, so carrying it forward would be a two-step forecast wearing
+    the name of a one-step one - and it scores measurably worse (R2 0.908 against
+    the 0.928 the reported baseline achieves). Current demand is not itself a
+    feature, but it is recoverable: `num_tasks * cpu_per_task` reconstructs it
+    exactly on the production traces (agreement to 1e-13) and to within rounding
+    on the synthetic generator, which rounds `num_tasks` to an integer.
+    """
+
+    KINDS = {"cpu": ("num_tasks", "cpu_per_task"),
+             "ram": ("num_tasks", "ram_per_task")}
+
+    def __init__(self, kind: str = "cpu"):
+        if kind not in self.KINDS:
+            raise ValueError(f"kind must be one of {sorted(self.KINDS)}, got {kind!r}")
+        self.kind = kind
+        self.feature_names_: list[str] = []
+
+    def fit(self, X: pd.DataFrame, y=None) -> "PersistenceRegressor":
+        self.feature_names_ = list(X.columns)
+        missing = [c for c in self.KINDS[self.kind] if c not in self.feature_names_]
+        if missing:
+            raise ValueError(
+                f"persistence needs {missing} to reconstruct current demand")
+        return self
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        count, per_unit = self.KINDS[self.kind]
+        return np.asarray(X[count], dtype=float) * np.asarray(X[per_unit], dtype=float)
 
 
 @dataclass
@@ -136,6 +176,8 @@ class WorkloadPredictor:
 
     def _make_model(self, params: dict | None = None):
         params = params or {}
+        if self.algo == "persistence":
+            return PersistenceRegressor(**params)
         if self.algo == "xgboost":
             import xgboost as xgb
 
@@ -170,7 +212,7 @@ class WorkloadPredictor:
         model state in a native allocation that the Python GC does not free
         promptly, which exhausts a constrained container over many fits.
         """
-        if self.algo == "lr":
+        if self.algo in ("lr", "persistence"):
             return {}                       # no hyperparameters to search
         import gc
 
@@ -229,6 +271,10 @@ class WorkloadPredictor:
             y_tr, y_val, y_te = (d[target] for d in (train_df, val_df, test_df))
 
             params = self._search(X_tr, y_tr, X_val, y_val) if tune else {}
+            if self.algo == "persistence":
+                # Which series to carry forward depends on the target, and the
+                # estimator cannot infer it from y.
+                params = {"kind": "cpu" if target == "target_cpu" else "ram"}
             if target == "target_cpu":
                 self.best_params = params
 
@@ -297,6 +343,17 @@ class WorkloadPredictor:
             values = contribs[:-1]
             base = float(contribs[-1])
             method = "treeshap-exact"
+
+        elif self.algo == "persistence":
+            # The forecast is the product of two features, so the whole prediction
+            # is attributable to them and to nothing else. Splitting a product
+            # evenly is the Shapley value for two symmetric contributors.
+            count, per_unit = PersistenceRegressor.KINDS[self.cpu_model.kind]
+            half = float(self.cpu_model.predict(X)[0]) / 2.0
+            share = {count: half, per_unit: half}
+            values = np.array([share.get(f, 0.0) for f in self.features])
+            base = 0.0
+            method = "identity-exact"
 
         elif self.algo == "lr":
             coef = np.asarray(self.cpu_model.coef_, dtype=float)
