@@ -84,6 +84,81 @@ function ModelComparison({ metrics }) {
   )
 }
 
+const VERDICT = {
+  model_likely_helps: {
+    label: 'A learned model should help',
+    tone: 'ok',
+    statTone: 'good',
+    gist: 'Demand mean-reverts — a rise tends to be followed by a fall. Persistence always predicts the rise continues, so it is systematically wrong in a way a model can correct.',
+  },
+  persistence_sufficient: {
+    label: 'Persistence is probably enough',
+    tone: 'warn',
+    statTone: 'warning',
+    gist: 'Demand behaves like a random walk. This interval’s change says nothing about the next, so "next equals current" is already near-optimal and a model will mostly fit noise. Spend the complexity budget on the control policy instead.',
+  },
+  inconclusive: {
+    label: 'Inconclusive',
+    tone: 'warn',
+    gist: 'The statistic falls between the calibrated boundaries, or there is not enough history. Measure it directly rather than guessing.',
+  },
+}
+
+function Forecastability({ report }) {
+  if (!report) return null
+  const v = VERDICT[report.verdict] ?? VERDICT.inconclusive
+
+  return (
+    <div className="panel">
+      <h2 className="panel-title">
+        Is a forecaster worth it here?
+        <span className={`mono tag tag-${v.tone}`}>{v.label}</span>
+      </h2>
+
+      <div className="grid cols-4">
+        <StatTile
+          label="Change autocorrelation"
+          value={report.diff_acf1?.toFixed(3) ?? '—'}
+          tone={v.statTone}
+          sub="lag-1, on the first difference — the deciding statistic"
+        />
+        <StatTile
+          label="Level autocorrelation"
+          value={report.level_acf1?.toFixed(3) ?? '—'}
+          sub="on demand itself — misleading, see below"
+        />
+        <StatTile
+          label="Variability"
+          value={report.cv?.toFixed(3) ?? '—'}
+          sub="coefficient of variation"
+        />
+        <StatTile
+          label="History"
+          value={report.span_hours ? Math.round(report.span_hours / 24) : '—'}
+          unit="d"
+          sub={`${report.samples ?? 0} intervals`}
+        />
+      </div>
+
+      <p className="panel-note">
+        {v.gist} This is decided <strong>before any model is trained</strong>, from a
+        single pass over the trace.
+      </p>
+      <p className="panel-note">
+        Note that <em>level acf1</em> is deliberately not the deciding statistic. It sits
+        above 0.84 on every workload measured — including the random walk where nothing
+        can beat persistence — which is exactly why a naive baseline scores R² above 0.9
+        on this problem and why R² alone says very little.
+        {report.verdict === 'model_likely_helps' && (
+          <> The same property is a warning about reactive autoscaling: a threshold
+            controller also scales to the last observation, and on the most strongly
+            mean-reverting workload measured it oscillated into 67.6% task failures.</>
+        )}
+      </p>
+    </div>
+  )
+}
+
 function Explanation({ explanation }) {
   if (!explanation) {
     return (
@@ -136,6 +211,7 @@ export default function Prediction({ session, guard, busy, meta }) {
   const [form, setForm] = useState({ num_tasks: 40, cpu_per_task: 0.42, ram_per_task: 0.9, hour: 14, day_of_week: 2 })
   const [result, setResult] = useState(null)
   const [historyRows, setHistoryRows] = useState([])
+  const [forecastability, setForecastability] = useState(null)
   const [loadError, setLoadError] = useState(null)
 
   useEffect(() => {
@@ -143,6 +219,7 @@ export default function Prediction({ session, guard, busy, meta }) {
     api.workloadHistory(288, 0)
       .then((d) => setHistoryRows(d.rows ?? []))
       .catch(() => {})
+    api.forecastability().then(setForecastability).catch(() => {})
   }, [])
 
   const runPrediction = () =>
@@ -198,6 +275,7 @@ export default function Prediction({ session, guard, busy, meta }) {
         />
       </div>
 
+      <Forecastability report={forecastability} />
       <ModelComparison metrics={metrics} />
 
       <div className="grid sidebar">

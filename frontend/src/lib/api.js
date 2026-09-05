@@ -111,6 +111,8 @@ export const api = {
   predict: (payload) => request('/api/models/predict', { method: 'POST', body: payload }),
   workloadHistory: (limit = 288, offset = 0) =>
     request(`/api/workload/history?limit=${limit}&offset=${offset}`),
+  forecastability: (limit = 0) =>
+    request(`/api/workload/forecastability?limit=${limit}`),
 
   scoreProviders: (payload) => request('/api/providers/score', { method: 'POST', body: payload }),
   priceSeries: (hours = 24, points = 96) =>
