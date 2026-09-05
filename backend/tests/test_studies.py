@@ -232,3 +232,90 @@ def test_wilcoxon_declines_to_test_too_few_blocks():
 def test_wilcoxon_detects_a_consistent_shift():
     _, p = study.wilcoxon([0.4, 0.35, 0.5, 0.42, 0.38, 0.6, 0.45, 0.52])
     assert p < 0.05
+
+
+# ----------------------------------------------------------------- verdicts
+
+def test_verdict_takes_direction_from_the_median_not_the_mean():
+    """The signed-rank test is a statement about the median, so the direction
+    must be too. A handful of badly mispredicted blocks can drag the mean above
+    1.0 while the model still wins most blocks - reading the mean there would
+    contradict the very test that established significance."""
+    skewed = {"mae_ratio_mean": 1.017, "mae_ratio_median": 0.94, "p_mae_holm": 0.01}
+    assert study.classify(skewed) == "model"
+
+
+def test_verdict_is_no_difference_when_not_significant():
+    assert study.classify(
+        {"mae_ratio_median": 0.60, "p_mae_holm": 0.06}) == "no difference"
+
+
+def test_verdict_is_no_difference_when_the_test_was_not_run():
+    assert study.classify(
+        {"mae_ratio_median": 0.60, "p_mae_holm": float("nan")}) == "no difference"
+    assert study.classify({"mae_ratio_median": 0.60}) == "no difference"
+
+
+def test_verdict_calls_persistence_when_the_model_is_significantly_worse():
+    assert study.classify(
+        {"mae_ratio_median": 1.53, "p_mae_holm": 1e-6}) == "persistence"
+
+
+# ------------------------------------------------- forecastability diagnostic
+
+from app.ml.forecastability import MIN_SAMPLES, assess  # noqa: E402
+
+
+def test_a_random_walk_is_called_unforecastable():
+    """The case where persistence is provably optimal - no model can beat it."""
+    rng = np.random.default_rng(0)
+    walk = np.cumsum(rng.normal(size=6_000)) + 5_000.0
+    result = assess(walk)
+    assert result["verdict"] == "persistence_sufficient"
+    assert abs(result["diff_acf1"]) < 0.1
+
+
+def test_a_mean_reverting_series_is_called_forecastable():
+    """Changes that reverse are structure persistence cannot use."""
+    rng = np.random.default_rng(1)
+    n = 6_000
+    series = np.empty(n)
+    series[0] = 100.0
+    for i in range(1, n):                       # AR(1) pulled back to 100
+        series[i] = 100.0 + 0.3 * (series[i - 1] - 100.0) + rng.normal(scale=3.0)
+    result = assess(series)
+    assert result["verdict"] == "model_likely_helps"
+    assert result["diff_acf1"] < -0.2
+
+
+def test_high_level_autocorrelation_alone_does_not_imply_forecastability():
+    """The trap this diagnostic exists to avoid.
+
+    A random walk has level autocorrelation near 1.0, which is exactly why a
+    naive baseline scores R² > 0.9 on this problem and why R² alone is close to
+    meaningless. The verdict must not be driven by it.
+    """
+    rng = np.random.default_rng(2)
+    walk = np.cumsum(rng.normal(size=6_000)) + 5_000.0
+    result = assess(walk)
+    assert result["level_acf1"] > 0.95
+    assert result["verdict"] == "persistence_sufficient"
+
+
+def test_short_series_is_refused_rather_than_guessed():
+    rng = np.random.default_rng(3)
+    result = assess(rng.normal(size=MIN_SAMPLES - 1) + 50.0)
+    assert result["verdict"] == "inconclusive"
+    assert str(MIN_SAMPLES) in result["reason"]
+
+
+def test_constant_and_degenerate_series_do_not_raise():
+    assert assess(np.full(1_000, 42.0))["verdict"] == "inconclusive"
+    assert assess(np.zeros(1_000))["verdict"] == "inconclusive"
+
+
+def test_verdict_is_invariant_to_rescaling():
+    """Demand in cores or millicores must not change the answer."""
+    rng = np.random.default_rng(4)
+    series = 100.0 + rng.normal(size=4_000).cumsum() * 0.1
+    assert assess(series)["verdict"] == assess(series * 1_000.0)["verdict"]
