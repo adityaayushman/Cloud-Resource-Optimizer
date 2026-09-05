@@ -113,6 +113,40 @@ def test_repeated_readings_in_one_slot_are_averaged_not_summed():
     assert out["cpu_cores"].iloc[0] == pytest.approx(0.4 * fetch_trace.ALIBABA_MACHINE_CORES)
 
 
+# ------------------------------------------------------- entity partitioning
+
+def test_shards_are_disjoint_and_exhaustive():
+    """The panel treats shards as separate workload samples, which is only
+    legitimate if they share no entities. Independent draws with different seeds
+    would overlap and quietly count the same VMs twice."""
+    files = [f"vm{i}.csv" for i in range(100)]
+    shards = [fetch_trace.partition(files, 42, f"{k}/3") for k in range(3)]
+
+    for i in range(len(shards)):
+        for j in range(i + 1, len(shards)):
+            assert not set(shards[i]) & set(shards[j])
+    assert set().union(*shards) == set(files)
+    assert sum(len(s) for s in shards) == len(files)
+
+
+def test_partition_is_deterministic_and_seed_sensitive():
+    files = [f"vm{i}.csv" for i in range(50)]
+    assert fetch_trace.partition(files, 42, "0/3") == fetch_trace.partition(files, 42, "0/3")
+    assert fetch_trace.partition(files, 42, "0/3") != fetch_trace.partition(files, 7, "0/3")
+
+
+def test_partition_without_a_shard_returns_everything():
+    files = [f"vm{i}.csv" for i in range(20)]
+    assert sorted(fetch_trace.partition(files, 1, None)) == sorted(files)
+
+
+def test_partition_rejects_a_malformed_shard():
+    files = [f"vm{i}.csv" for i in range(20)]
+    for bad in ("3/3", "-1/3", "abc", "1/0", "2"):
+        with pytest.raises(ValueError):
+            fetch_trace.partition(files, 1, bad)
+
+
 # ---------------------------------------------------------- burst labels
 
 def test_burst_labels_respect_the_refractory_period():

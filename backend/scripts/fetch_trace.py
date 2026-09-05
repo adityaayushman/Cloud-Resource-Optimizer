@@ -258,6 +258,28 @@ def label_bursts(cpu: np.ndarray, k: float = 6.0, refractory: int = 6) -> np.nda
     return onsets
 
 
+def partition(files: list[str], seed: int, shard: str | None) -> list[str]:
+    """Shuffle deterministically, then optionally take one disjoint slice.
+
+    Slicing a single shuffled order with a stride is what makes the shards
+    provably non-overlapping and jointly exhaustive. Drawing N samples with N
+    different seeds would *not*: independent draws from the same pool overlap, so
+    a study treating them as separate workloads would count the same VMs twice
+    and inflate its sample size without adding information.
+    """
+    pool = list(files)
+    random.Random(seed).shuffle(pool)
+    if not shard:
+        return pool
+    try:
+        k, n = (int(x) for x in shard.split("/"))
+    except ValueError:
+        raise ValueError(f"--shard {shard!r} must look like K/N") from None
+    if not (0 <= k < n):
+        raise ValueError(f"--shard {shard} must satisfy 0 <= K < N")
+    return pool[k::n]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -308,21 +330,16 @@ def main() -> int:
         return 1
     print(f"  {len(files)} entities available")
 
-    # Shuffle once with the seed, then either take a prefix or a disjoint
-    # partition. Partitioning a single shuffled order is what makes the shards
-    # provably non-overlapping.
-    pool = list(files)
-    random.Random(args.seed).shuffle(pool)
     shard_label = None
+    try:
+        pool = partition(files, args.seed, args.shard)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
     if args.shard:
-        k, n = (int(x) for x in args.shard.split("/"))
-        if not (0 <= k < n):
-            print(f"ERROR: --shard {args.shard} must satisfy 0 <= K < N", file=sys.stderr)
-            return 1
-        pool = pool[k::n]
-        shard_label = f"{k}/{n}"
+        shard_label = args.shard
         print(f"  shard {shard_label}: {len(pool)} of {len(files)} entities, "
-              f"disjoint from the other {n - 1} shards")
+              f"disjoint from the other shards")
 
     chosen = pool
     if args.entities and args.entities < len(pool):
