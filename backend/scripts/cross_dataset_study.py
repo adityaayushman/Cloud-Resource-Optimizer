@@ -125,7 +125,7 @@ def plan_blocks(n: int, train_window: int = DEFAULT_TRAIN_WINDOW) -> tuple[int, 
 
 def evaluate(frame: pd.DataFrame, algo: str,
              train_window: int = DEFAULT_TRAIN_WINDOW,
-             expanding: bool = True) -> list[dict]:
+             expanding: bool = True, n_jobs: int = 1) -> list[dict]:
     """Refit at successive origins; return one record per disjoint test block.
 
     `expanding` (the default) trains block k on *everything* before it, which is
@@ -156,7 +156,13 @@ def evaluate(frame: pd.DataFrame, algo: str,
         tr = slice(0 if expanding else origin - train_len, origin)
         te = slice(origin, origin + test_len)
 
-        model = WorkloadPredictor(algo)._make_model({})
+        # `n_jobs` is a speed knob only. The deployed predictor pins it to 1
+        # because the target container has 512 MB and extra worker threads cost
+        # more memory than they save; this study is a local research run over
+        # ~1,400 fits, where that trade-off is reversed. Both forests are
+        # seeded, so the fitted models are the same either way.
+        model = WorkloadPredictor(algo)._make_model(
+            {} if algo == "lr" else {"n_jobs": n_jobs})
         model.fit(X_all.iloc[tr], y_all.iloc[tr])
         y_te = y_all.iloc[te].to_numpy()
 
@@ -201,6 +207,28 @@ def holm(pvalues: list[float]) -> list[float]:
     return adj
 
 
+ALPHA = 0.05
+
+
+def classify(row: dict) -> str:
+    """The verdict for one (dataset, horizon, model) cell.
+
+    Direction comes from the *median* ratio, not the mean, because the
+    signed-rank test is a statement about the median. Reading direction off the
+    mean can contradict the very test that established significance: a few badly
+    mispredicted blocks drag the mean above 1.0 while the model still wins the
+    majority of blocks. Google at one step is exactly that shape - mean ratio
+    1.017, yet 17 of 23 blocks won.
+
+    Lives here rather than inline so `render_cross_dataset.py` can apply the same
+    rule to a stored result instead of restating it.
+    """
+    p = row.get("p_mae_holm")
+    if p is None or p != p or p >= ALPHA:
+        return "no difference"
+    return "model" if row["mae_ratio_median"] < 1.0 else "persistence"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -211,6 +239,9 @@ def main() -> int:
     ap.add_argument("--train-window", type=int, default=DEFAULT_TRAIN_WINDOW,
                     help="warm-up length before the first test block, and the "
                          "window length when --sliding is given (2016 = 7 days)")
+    ap.add_argument("--n-jobs", type=int, default=-1,
+                    help="threads per model fit (-1 = all cores). Speed only; "
+                         "the deployed predictor pins this to 1 for memory.")
     ap.add_argument("--sliding", action="store_true",
                     help="hold training-set size fixed instead of expanding it; "
                          "a robustness check, not the primary design")
@@ -245,7 +276,9 @@ def main() -> int:
     total = len(frames) * len(args.horizons) * len(args.algos)
     print(f"\nRolling-origin study: {total} cells "
           f"({len(frames)} traces x {len(args.horizons)} horizons x {len(args.algos)} models)")
-    print("Disjoint test blocks, sliding fixed-length training window, CPU demand only.\n")
+    print(f"Disjoint test blocks, "
+          f"{'fixed-length sliding' if args.sliding else 'expanding'} training window, "
+          f"CPU demand only.\n")
 
     rows: list[dict] = []
     done = 0
@@ -259,7 +292,8 @@ def main() -> int:
         for h in args.horizons:
             predictor_module.HORIZON = h
             for algo in args.algos:
-                blocks = evaluate(df, algo, args.train_window, not args.sliding)
+                blocks = evaluate(df, algo, args.train_window,
+                                  not args.sliding, args.n_jobs)
                 done += 1
                 if not blocks:
                     print(f"  h={h:>2} {algo:<8} too few blocks; skipped")
@@ -304,9 +338,7 @@ def main() -> int:
             row[adj_key] = adj
 
     for row in rows:
-        beats = row["mae_ratio_mean"] < 1.0
-        sig = row["p_mae_holm"] == row["p_mae_holm"] and row["p_mae_holm"] < 0.05
-        row["verdict"] = ("model" if beats else "persistence") if sig else "no difference"
+        row["verdict"] = classify(row)
 
     # --------------------------------------------------------------- summary
     print("=" * 78)
@@ -321,7 +353,7 @@ def main() -> int:
             if not cand:
                 cells.append("   -")
                 continue
-            best = min(cand, key=lambda r: r["mae_ratio_mean"])
+            best = min(cand, key=lambda r: r["mae_ratio_median"])
             mark = {"model": "+", "persistence": "-", "no difference": "="}[best["verdict"]]
             cells.append(f"{mark}{best['mae_ratio_mean']:>4.2f}")
         print(f"{name:<11}{traits[name]['diff_acf1']:>10.3f}  " +
@@ -354,6 +386,7 @@ def main() -> int:
             "correction": "Holm-Bonferroni across all reported tests",
             "primary_measure": "MAE ratio (model / persistence); <1 means the model wins",
             "interval_minutes": args.interval,
+            "n_jobs": args.n_jobs,
             "train_window_intervals": args.train_window,
             "expanding_window": not args.sliding,
             "train_window_note": ("the expanding window is primary because it is what a "
