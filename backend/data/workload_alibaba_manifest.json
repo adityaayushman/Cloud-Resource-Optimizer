@@ -16,8 +16,12 @@
   "seed": 42,
   "slot_seconds": 300,
   "min_coverage": 0.8,
+  "max_gap_interpolated": 6,
   "slots_before_coverage_filter": 2242,
+  "slots_trimmed_at_edges": 473,
+  "slots_interpolated": 0,
   "entities_per_slot_p95": 391.0,
+  "entities_per_slot_min": 1,
   "wallclock_anchor": "arbitrary fixed offset - source timestamps are relative to the trace epoch, so hour/day-of-week labels carry a constant unknown phase shift",
   "span_days": 6.14,
   "rows": 1769,
@@ -27,6 +31,6 @@
   "ram_cpu_ratio": 9.122,
   "burst_onsets": 0,
   "burst_labels": "heuristic (MAD rule on first difference, k=6, refractory=6)",
-  "fetched_at": "2026-09-05T02:14:23",
-  "elapsed_seconds": 45.4
+  "fetched_at": "2026-09-05T15:48:41",
+  "elapsed_seconds": 67.9
 }

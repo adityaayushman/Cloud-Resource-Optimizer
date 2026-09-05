@@ -266,9 +266,12 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--min-coverage", type=float, default=0.80,
-                    help="drop slots where fewer than this fraction of the p95 entity "
-                         "count reports, so the aggregate is not an artefact of "
-                         "entities entering and leaving the window")
+                    help="a slot counts as measured only if at least this fraction of "
+                         "the p95 entity count reports in it, so the aggregate is not "
+                         "an artefact of entities entering and leaving the window")
+    ap.add_argument("--max-gap", type=int, default=6,
+                    help="interpolate runs of low-coverage slots up to this length "
+                         "(6 slots = 30 min); a longer outage splits the series")
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
 
@@ -323,32 +326,61 @@ def main() -> int:
     all_slots = np.array(sorted(cpu_by))
     coverage = np.array([seen_by[s] for s in all_slots], dtype=float)
     peak_cover = float(np.percentile(coverage, 95))
-
-    # Entities do not all span the same wall-clock window. Without this filter the
-    # aggregate would show a spurious ramp-up and ramp-down at the edges - purely
-    # an artefact of how many entities happened to be reporting, not of demand.
-    keep = coverage >= args.min_coverage * peak_cover
-    if not keep.any():
+    usable = coverage >= args.min_coverage * peak_cover
+    if not usable.any():
         print("ERROR: no slot meets the coverage threshold.", file=sys.stderr)
         return 1
 
-    # Then keep the longest contiguous run: a gap would silently become a
-    # discontinuity in every lag feature downstream.
-    kept = all_slots[keep]
-    breaks = np.flatnonzero(np.diff(kept) != 1)
-    bounds = np.concatenate(([0], breaks + 1, [len(kept)]))
-    spans = [(bounds[i], bounds[i + 1]) for i in range(len(bounds) - 1)]
-    lo, hi = max(spans, key=lambda s: s[1] - s[0])
-    slots = kept[lo:hi]
+    # Two different problems, which need two different treatments.
+    #
+    # 1. Entities do not all span the same wall-clock window, so the aggregate
+    #    ramps up at the start and down at the end purely as an artefact of how
+    #    many entities were reporting. Those edges are trimmed away.
+    # 2. Inside the trimmed window, isolated slots can still dip below the
+    #    threshold. Treating each dip as a hard break is disastrous: on Bitbrains
+    #    coverage is a healthy 279-294 throughout, but a handful of scattered
+    #    dips fragment the trace so badly that the longest gap-free run is 2,972
+    #    of 8,640 slots. Short dips are interpolated instead, and only a sustained
+    #    outage (> --max-gap slots) actually splits the series.
+    live = np.flatnonzero(usable)
+    first_slot = int(all_slots[live[0]])
+    last_slot = int(all_slots[live[-1]])
+    trimmed_edges = len(all_slots) - (live[-1] - live[0] + 1)
+
+    good = {int(s): (cpu_by[s], ram_by[s], act_by[s])
+            for s, keep in zip(all_slots, usable) if keep}
+
+    # Walk the full integer slot range and split it only on sustained outages.
+    full = np.arange(first_slot, last_slot + 1)
+    present = np.array([int(s) in good for s in full])
+    segments, start, gap_start = [], 0, None
+    for i, ok_here in enumerate(present):
+        if ok_here:
+            if gap_start is not None and (i - gap_start) > args.max_gap:
+                segments.append((start, gap_start))
+                start = i
+            gap_start = None
+        elif gap_start is None:
+            gap_start = i
+    segments.append((start, len(present) if gap_start is None else gap_start))
+
+    lo, hi = max(segments, key=lambda s: s[1] - s[0])
+    slots = full[lo:hi]
+    repaired = int((~present[lo:hi]).sum())
 
     print(f"  coverage: {int(coverage.min())}-{int(coverage.max())} entities/slot "
-          f"(p95 {peak_cover:.0f}); kept {len(slots):,} of {len(all_slots):,} slots "
-          f"at >={args.min_coverage:.0%} coverage, contiguous")
+          f"(p95 {peak_cover:.0f}, threshold {args.min_coverage:.0%})")
+    print(f"  kept {len(slots):,} of {len(all_slots):,} slots "
+          f"({trimmed_edges:,} trimmed at the edges, {repaired:,} interpolated over "
+          f"gaps of <= {args.max_gap} slots)")
 
     if len(slots) < 500:
         print(f"ERROR: only {len(slots)} usable contiguous slots; too short to evaluate.",
               file=sys.stderr)
         return 1
+    if repaired > 0.05 * len(slots):
+        print(f"WARNING: {repaired / len(slots):.1%} of the kept series is "
+              f"interpolated rather than measured.", file=sys.stderr)
 
     # Anchor to a wall-clock so the hour / day-of-week features have something to
     # key on. Bitbrains timestamps are true Unix time; the other three are
@@ -359,9 +391,20 @@ def main() -> int:
     origin = (pd.Timestamp("1970-01-01") + pd.Timedelta(seconds=int(slots[0]) * SLOT_SECONDS)
               if real_clock else pd.Timestamp("2013-08-12"))
     ts = pd.to_datetime((slots - slots[0]) * SLOT_SECONDS, unit="s", origin=origin)
-    cpu = np.array([cpu_by[s] for s in slots], dtype=float)
-    ram = np.array([ram_by[s] for s in slots], dtype=float)
-    active = np.array([max(1, act_by[s]) for s in slots], dtype=float)
+
+    # Slots that failed the coverage check carry NaN and are then linearly
+    # interpolated. Carrying the low-coverage reading forward instead would inject
+    # a fake dip in demand; interpolating keeps the series continuous, which every
+    # lag and rolling feature downstream depends on.
+    def series(index: int, minimum: float = 0.0) -> np.ndarray:
+        raw = np.array([good[int(s)][index] if int(s) in good else np.nan
+                        for s in slots], dtype=float)
+        filled = pd.Series(raw).interpolate(limit_direction="both").to_numpy()
+        return np.maximum(filled, minimum)
+
+    cpu = series(0)
+    ram = series(1)
+    active = series(2, minimum=1.0)
 
     frame = pd.DataFrame({
         "timestamp": ts,
@@ -396,8 +439,12 @@ def main() -> int:
         "seed": args.seed,
         "slot_seconds": SLOT_SECONDS,
         "min_coverage": args.min_coverage,
+        "max_gap_interpolated": args.max_gap,
         "slots_before_coverage_filter": len(all_slots),
+        "slots_trimmed_at_edges": int(trimmed_edges),
+        "slots_interpolated": repaired,
         "entities_per_slot_p95": round(peak_cover, 1),
+        "entities_per_slot_min": int(coverage.min()),
         "wallclock_anchor": ("true Unix timestamps from the source trace" if real_clock
                              else "arbitrary fixed offset - source timestamps are "
                                   "relative to the trace epoch, so hour/day-of-week "
