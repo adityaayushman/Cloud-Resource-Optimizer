@@ -75,19 +75,19 @@ Margin = model R² − persistence R², mean over 3 disjoint windows of the trac
 
 | Horizon | XGBoost | Random Forest | Linear Regression |
 |---|---|---|---|
-| 5 min | −0.0063 (1/3) | −0.0033 (1/3) | −0.0080 (0/3) |
-| 15 min | −0.0428 (0/3) | −0.0236 (0/3) | −0.0040 (0/3) |
-| 30 min | −0.0618 (0/3) | −0.0542 (0/3) | **+0.0035 (2/3)** |
-| 60 min | −0.0593 (1/3) | −0.0674 (1/3) | **+0.0260 (2/3)** |
+| 5 min | −0.0031 (1/3) | −0.0022 (1/3) | −0.0015 (1/3) |
+| 15 min | −0.0395 (0/3) | −0.0235 (0/3) | −0.0006 (1/3) |
+| 30 min | −0.0735 (0/3) | −0.0595 (0/3) | **+0.0047 (2/3)** |
+| 60 min | −0.0732 (1/3) | −0.0726 (1/3) | **+0.0291 (2/3)** |
 
 ### Side by side with the synthetic result
 
 | Horizon | XGBoost, synthetic | XGBoost, real trace |
 |---|---|---|
-| 5 min | −0.0009 (1/3) | −0.0063 (1/3) |
-| 15 min | **+0.0108 (3/3)** | −0.0428 (0/3) |
-| 30 min | **+0.0403 (3/3)** | −0.0618 (0/3) |
-| 60 min | **+0.1490 (3/3)** | −0.0593 (1/3) |
+| 5 min | −0.0009 (1/3) | −0.0031 (1/3) |
+| 15 min | **+0.0108 (3/3)** | −0.0395 (0/3) |
+| 30 min | **+0.0403 (3/3)** | −0.0735 (0/3) |
+| 60 min | **+0.1490 (3/3)** | −0.0732 (1/3) |
 
 **The conclusion reverses.** Three things follow.
 
@@ -97,10 +97,13 @@ Margin = model R² − persistence R², mean over 3 disjoint windows of the trac
    with a slow trend. Trees fit local structure and extrapolate it; when the
    structure is noise, extrapolating it is worse than doing nothing.
 2. **Linear regression is the only model that beats persistence at long
-   horizons** (+0.026 at 60 minutes, 2 of 3 windows). It cannot represent the
+   horizons** (+0.029 at 60 minutes, 2 of 3 windows). It cannot represent the
    spurious local structure that hurts the ensembles, so it degrades gracefully.
    This exactly inverts the synthetic ranking, where the ensembles led at long
    horizons precisely because the generator contained learnable step structure.
+   The cross-dataset study confirms this on Google and Azure too: **every**
+   significant win on a production trace, at any horizon, belongs to linear
+   regression.
 3. **The synthetic finding was an artefact of the generator.** The batch window,
    weekday-afternoon amplification and maintenance dip written into
    `app/workload.py` are learnable by construction. Real demand does not contain
@@ -112,13 +115,14 @@ One-step accuracy on the real trace, for completeness:
 
 | Model | R² | MAE (cores) | MAPE |
 |---|---|---|---|
-| Linear Regression | 0.8748 | 10.703 | 14.76% |
-| *Persistence baseline* | *0.8738* | *9.800* | *12.79%* |
-| XGBoost | 0.8698 | 11.963 | 17.70% |
-| Random Forest | 0.8640 | 11.873 | 17.26% |
+| Linear Regression | 0.9018 | 10.220 | 12.29% |
+| Random Forest | 0.8813 | 11.422 | 13.71% |
+| XGBoost | 0.8765 | 11.759 | 14.35% |
 
-Note that persistence has the **best MAE and MAPE of all four**. A ranking by R²
-alone would have hidden that.
+Linear regression leads on every measure here, and both tree ensembles trail it —
+the reverse of the synthetic ranking. Against the persistence baseline the whole
+group still loses at this horizon; see the margin table above, which is the
+comparison that matters.
 
 ---
 
