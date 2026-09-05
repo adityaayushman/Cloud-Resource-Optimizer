@@ -93,13 +93,16 @@ for the raw output.
 
 ### Validated on four production traces
 
-Everything below is reproduced on four public production traces as well as the
-synthetic generator — Bitbrains GWA-T-12, Google Borg, Azure and Alibaba, all
+The synthetic results in the rest of this section are re-run on four public
+production traces — Bitbrains GWA-T-12, Google Borg, Azure and Alibaba — all
 built by `scripts/fetch_trace.py`. Full study:
 [docs/RESULTS-CROSS-DATASET.md](docs/RESULTS-CROSS-DATASET.md).
 
-**The control results replicate everywhere.** Full system vs the ML-only
-predictive baseline:
+**The control results replicate on every workload they were run against.** Full
+system vs the ML-only predictive baseline. Alibaba is absent because its RAM:CPU
+ratio of 9.1 exceeds anything the instance catalogue offers, so every policy
+would be permanently memory-bound and the comparison would measure catalogue
+mismatch rather than control policy:
 
 | | synthetic | bitbrains | google | azure |
 |---|---|---|---|---|

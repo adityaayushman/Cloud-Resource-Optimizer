@@ -160,13 +160,19 @@ exceeds 0.84 on all five workloads including the random walk. That is precisely
 why a naive baseline scores R² above 0.9 in Table 4.1 and why a high R² is not
 evidence of a useful model.
 
-Two practical consequences. First, the diagnostic costs one pass over a trace and
+The practical consequence is that the diagnostic costs one pass over a trace and
 no training, so the question "is an ML forecaster worth building here?" is
-answerable before building one; it is exposed in the implementation as
-`GET /api/workload/forecastability`. Second, it also predicts where *reactive*
-autoscaling is dangerous — a threshold controller scales to the last observation
-and so shares persistence's blind spot. On the most strongly mean-reverting
-workload measured it oscillated into 67.6% task failures (§4.6).
+answerable before building one. It is exposed in the implementation as
+`GET /api/workload/forecastability`.
+
+A weaker second reading is worth recording without overclaiming. A reactive
+threshold controller scales to the last observation, so it is a persistence
+forecaster in another guise, and on the most strongly mean-reverting workload the
+reactive arm rejected 67.6% of all work (§4.6). Across the four workloads that
+arm was run on, however, the correlation between `diff_acf1` and its failure rate
+is only −0.465, and the second-most mean-reverting workload had the lowest
+failure rate of the four. The mechanism is plausible and the Google result is
+striking; neither is established by four points.
 
 The honest summary is that this project asked "does the forecaster earn its
 place?" three times on three datasets and got three different answers, and that

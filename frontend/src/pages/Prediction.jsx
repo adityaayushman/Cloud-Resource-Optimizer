@@ -150,9 +150,10 @@ function Forecastability({ report }) {
         can beat persistence — which is exactly why a naive baseline scores R² above 0.9
         on this problem and why R² alone says very little.
         {report.verdict === 'model_likely_helps' && (
-          <> The same property is a warning about reactive autoscaling: a threshold
-            controller also scales to the last observation, and on the most strongly
-            mean-reverting workload measured it oscillated into 67.6% task failures.</>
+          <> A reactive threshold controller also scales to the last observation and so
+            shares persistence's blind spot here — worth testing before relying on one,
+            though across the four workloads measured that link was suggestive rather
+            than established.</>
         )}
       </p>
     </div>
