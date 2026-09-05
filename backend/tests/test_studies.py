@@ -298,6 +298,76 @@ def test_horizon_summary_survives_empty_results():
     assert horizon_study.summarise([], None) == "No results."
 
 
+# ------------------------------------------- claims the documents actually make
+#
+# README.md, docs/RESULTS-CROSS-DATASET.md and the replacement Chapter 4 all
+# state these in prose. The study output is committed, so the prose can be
+# checked against it rather than trusted - which is the whole point of committing
+# the JSON.
+
+STUDY_JSON = ROOT / "artifacts" / "cross_dataset_study.json"
+needs_study = pytest.mark.skipif(
+    not STUDY_JSON.exists(), reason="run scripts/cross_dataset_study.py first")
+
+REAL_TRACES = {"bitbrains", "google", "azure", "alibaba"}
+
+
+@pytest.fixture(scope="module")
+def study_rows():
+    import json
+    rows = json.loads(STUDY_JSON.read_text(encoding="utf-8"))["rows"]
+    for row in rows:
+        row["verdict"] = study.classify(row)
+    return rows
+
+
+@needs_study
+def test_every_win_on_a_real_trace_is_linear_regression(study_rows):
+    """The documents say no tree ensemble ever beats persistence on production
+    data. That is the claim that argues against the project's own default
+    predictor, so it should not be able to rot silently."""
+    real_wins = [r for r in study_rows
+                 if r["verdict"] == "model" and r["dataset"] in REAL_TRACES]
+    assert real_wins, "expected at least one win on a real trace"
+    assert {r["algo"] for r in real_wins} == {"lr"}
+
+
+@needs_study
+def test_bitbrains_is_the_only_workload_that_loses(study_rows):
+    losses = [r for r in study_rows if r["verdict"] == "persistence"]
+    assert losses
+    assert {r["dataset"] for r in losses} == {"bitbrains"}
+
+
+@needs_study
+def test_diff_acf1_orders_the_workloads_by_outcome(study_rows):
+    """The headline claim: sort by diff_acf1 and you sort by mean MAE ratio."""
+    import json
+    traces = json.loads(STUDY_JSON.read_text(encoding="utf-8"))["traces"]
+    per_trace = {}
+    for name in traces:
+        cells = [r["mae_ratio_mean"] for r in study_rows if r["dataset"] == name]
+        if cells:
+            per_trace[name] = (traces[name]["diff_acf1"], float(np.mean(cells)))
+
+    by_acf1 = sorted(per_trace.values())
+    ratios = [ratio for _, ratio in by_acf1]
+    assert ratios == sorted(ratios), (
+        f"sorting by diff_acf1 no longer sorts by MAE ratio: {by_acf1}")
+
+
+@needs_study
+def test_bitbrains_is_the_only_workload_on_the_random_walk_side(study_rows):
+    """The diagnostic's boundary and the study's data must agree; if a rebuilt
+    dataset moved a trace across it, the documents would be wrong."""
+    import json
+    from app.ml.forecastability import PERSISTENCE_SUFFICIENT_ABOVE
+    traces = json.loads(STUDY_JSON.read_text(encoding="utf-8"))["traces"]
+    random_walk = {n for n, t in traces.items()
+                   if t["diff_acf1"] >= PERSISTENCE_SUFFICIENT_ABOVE}
+    assert random_walk == {"bitbrains"}
+
+
 # ------------------------------------------------- forecastability diagnostic
 
 from app.ml.forecastability import MIN_SAMPLES, assess  # noqa: E402
