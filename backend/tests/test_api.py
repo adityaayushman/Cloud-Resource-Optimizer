@@ -142,3 +142,25 @@ def test_fleet_cap_is_enforced_through_the_api():
                        json={"instance_type": "large", "count": 20}).json()
     assert body["metrics"]["fleet_size"] <= body["config"]["max_fleet"]
     client.delete(f"/api/session/{sid}")
+
+
+# ------------------------------------------------------- forecastability
+
+def test_forecastability_endpoint_answers_before_any_training():
+    """This endpoint must work on a clean checkout: its whole point is telling
+    you whether to build the ML pipeline, which is a question you ask *first*."""
+    r = client.get("/api/workload/forecastability")
+    if r.status_code == 503:
+        pytest.skip("dataset missing; run scripts/generate_data.py")
+    body = r.json()
+    assert body["verdict"] in ("model_likely_helps", "persistence_sufficient",
+                               "inconclusive")
+    assert -1.0 <= body["diff_acf1"] <= 1.0
+    assert body["reason"]
+
+
+def test_forecastability_refuses_a_series_too_short_to_judge():
+    r = client.get("/api/workload/forecastability?limit=100")
+    if r.status_code == 503:
+        pytest.skip("dataset missing; run scripts/generate_data.py")
+    assert r.json()["verdict"] == "inconclusive"

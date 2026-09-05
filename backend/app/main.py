@@ -303,6 +303,27 @@ def workload_history(limit: int = 288, offset: int = 0) -> dict:
     }
 
 
+@app.get("/api/workload/forecastability")
+def workload_forecastability(limit: int = 0) -> dict:
+    """Would a learned forecaster beat a persistence baseline on this workload?
+
+    Answerable without training anything, from the lag-1 autocorrelation of the
+    first difference. Exposed as an endpoint because it is the one result from
+    the cross-dataset study that an operator can act on directly: run it on your
+    own trace before committing to an ML pipeline.
+    """
+    from .ml.forecastability import assess
+
+    if not DATA.exists():
+        raise HTTPException(
+            status_code=503,
+            detail="Dataset missing. Run scripts/generate_data.py.",
+        )
+    df = pd.read_csv(DATA, usecols=["cpu_demand"])
+    series = df["cpu_demand"] if limit <= 0 else df["cpu_demand"].tail(limit)
+    return {"dataset": DATA.name, **assess(series.to_numpy())}
+
+
 # ---------------------------------------------------------------------------
 # Multi-cloud
 # ---------------------------------------------------------------------------
