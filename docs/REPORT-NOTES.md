@@ -5,6 +5,24 @@
 >   numbers, every figure cross-checked against `backend/artifacts/`.
 > - `docs/REFERENCES.md` — corrected reference list where every entry is cited
 >   and every method used has its source, plus a citation-placement table.
+>
+> **The evaluation is now cross-dataset, and one headline claim changed.** The
+> project ran on synthetic data, then on one production trace, then on four. The
+> control results (reinforcement-learned headroom, multi-cloud selection) hold on
+> every workload. The forecasting claim does not, in either direction, and the
+> report must not state a fixed verdict on it — see
+> `docs/RESULTS-CROSS-DATASET.md` and §4.3 of the replacement chapter. Two
+> consequences for the write-up:
+>
+> - **Drop "break-even is 15 minutes."** Under disjoint test blocks with a
+>   significance test and multiple-comparison correction, the synthetic
+>   break-even is 60 minutes, and on three of five workloads there is no horizon
+>   at which an ensemble beats a persistence baseline at all.
+> - **Do not present XGBoost as the validated best predictor.** All seven
+>   significant wins on production traces are linear regression; neither tree
+>   ensemble beats persistence on a real trace at any horizon. The report can
+>   keep XGBoost as the implemented default — it is what the system ships — but
+>   the results chapter has to say that the measurement does not support it.
 
 This file maps the implementation onto the project report and the conference
 paper, and flags the places where the two must be brought into agreement before
