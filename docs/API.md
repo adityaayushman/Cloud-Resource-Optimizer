@@ -87,6 +87,33 @@ the request's own implied demand. For attribution against live state use
 ### `GET /api/workload/history?limit=288&offset=0`
 Rows from the training dataset, for charting.
 
+### `GET /api/workload/forecastability?limit=0`
+
+Answers "is a learned forecaster worth building for this workload?" — **without
+training anything**. `limit` restricts to the most recent N intervals; 0 uses the
+whole dataset.
+
+```json
+{
+  "verdict": "persistence_sufficient",
+  "diff_acf1": 0.1728,
+  "level_acf1": 0.984,
+  "cv": 0.5727,
+  "reason": "Demand behaves like a random walk ..."
+}
+```
+
+`verdict` is `model_likely_helps`, `persistence_sufficient` or `inconclusive`.
+The decision rests on **`diff_acf1`**, the lag-1 autocorrelation of the first
+difference — near zero means a random walk, where "next equals current" is
+already optimal and no model can beat it; strongly negative means changes
+reverse, which persistence structurally cannot exploit.
+
+Deliberately **not** `level_acf1`: that is above 0.84 on every workload measured,
+including the random walk, which is why a naive baseline scores R² > 0.9 here and
+why R² alone says very little. See
+[RESULTS-CROSS-DATASET.md](RESULTS-CROSS-DATASET.md) for the calibration.
+
 ---
 
 ## Multi-cloud
