@@ -48,7 +48,7 @@ import urllib.error
 import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
 
@@ -264,6 +264,19 @@ def main() -> int:
     ap.add_argument("--dataset", default="bitbrains", choices=list(ADAPTERS))
     ap.add_argument("--entities", type=int, default=300, help="VMs/tasks to sample (0 = all)")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--collection", default=None,
+                    help="sub-collection to read instead of the adapter default. "
+                         "Bitbrains publishes four: 1201308 (fastStorage, 1241 VMs) "
+                         "and 201307 / 201308 / 201309 (Rnd, 500 VMs each, different "
+                         "months and different VMs).")
+    ap.add_argument("--shard", default=None, metavar="K/N",
+                    help="take partition K of N from the entity list, so repeated "
+                         "runs give provably DISJOINT entity samples. Two seeds do "
+                         "not: independent draws from the same pool overlap, and a "
+                         "study that treated them as separate workloads would be "
+                         "counting the same VMs twice.")
+    ap.add_argument("--name", default=None,
+                    help="output basename (default: the dataset name)")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--min-coverage", type=float, default=0.80,
                     help="a slot counts as measured only if at least this fraction of "
@@ -276,7 +289,11 @@ def main() -> int:
     args = ap.parse_args()
 
     adapter = ADAPTERS[args.dataset]
-    out = args.out or (ROOT / "data" / f"workload_{args.dataset}.csv")
+    if args.collection:
+        root = adapter.prefix.split("/")[0]
+        adapter = replace(adapter, prefix=f"{root}/{args.collection}/")
+    name = args.name or args.dataset
+    out = args.out or (ROOT / "data" / f"workload_{name}.csv")
 
     print(f"{args.dataset}: {adapter.description}")
     if adapter.notes:
@@ -291,9 +308,25 @@ def main() -> int:
         return 1
     print(f"  {len(files)} entities available")
 
-    chosen = files
-    if args.entities and args.entities < len(files):
-        chosen = random.Random(args.seed).sample(files, args.entities)
+    # Shuffle once with the seed, then either take a prefix or a disjoint
+    # partition. Partitioning a single shuffled order is what makes the shards
+    # provably non-overlapping.
+    pool = list(files)
+    random.Random(args.seed).shuffle(pool)
+    shard_label = None
+    if args.shard:
+        k, n = (int(x) for x in args.shard.split("/"))
+        if not (0 <= k < n):
+            print(f"ERROR: --shard {args.shard} must satisfy 0 <= K < N", file=sys.stderr)
+            return 1
+        pool = pool[k::n]
+        shard_label = f"{k}/{n}"
+        print(f"  shard {shard_label}: {len(pool)} of {len(files)} entities, "
+              f"disjoint from the other {n - 1} shards")
+
+    chosen = pool
+    if args.entities and args.entities < len(pool):
+        chosen = pool[:args.entities]
         print(f"  sampling {len(chosen)} uniformly at random (seed {args.seed})")
 
     cpu_by: dict[int, float] = defaultdict(float)
@@ -426,6 +459,9 @@ def main() -> int:
 
     manifest = {
         "dataset": args.dataset,
+        "name": name,
+        "collection": args.collection or adapter.prefix,
+        "shard": shard_label,
         "description": adapter.description,
         "mirror": "github.com/muse-research-lab/cloud-forecast-data-persistence",
         "unit_notes": adapter.notes,
@@ -460,7 +496,7 @@ def main() -> int:
         "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "elapsed_seconds": round(time.time() - started, 1),
     }
-    (out.parent / f"workload_{args.dataset}_manifest.json").write_text(
+    (out.parent / f"workload_{name}_manifest.json").write_text(
         json.dumps(manifest, indent=2), encoding="utf-8")
 
     print(f"\nWrote {len(frame):,} rows to {out}")

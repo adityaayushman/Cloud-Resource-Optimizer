@@ -232,7 +232,8 @@ def classify(row: dict) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--datasets", nargs="+", default=list(DATASETS))
+    ap.add_argument("--datasets", nargs="+", default=list(DATASETS),
+                    help="dataset keys, or name=path for an ad-hoc workload")
     ap.add_argument("--horizons", type=int, nargs="+", default=HORIZONS)
     ap.add_argument("--algos", nargs="+", default=ALGOS)
     ap.add_argument("--interval", type=int, default=5)
@@ -252,8 +253,19 @@ def main() -> int:
     original_horizon = predictor_module.HORIZON
 
     frames, traits = {}, {}
-    for name in args.datasets:
-        path, desc = DATASETS[name]
+    for entry in args.datasets:
+        # Either a key from DATASETS, or "name=path" for an ad-hoc workload -
+        # which is how the seventeen-sample panel is run without hard-coding it.
+        if "=" in entry:
+            name, raw = entry.split("=", 1)
+            path, desc = Path(raw), f"ad-hoc workload from {raw}"
+        elif entry in DATASETS:
+            name = entry
+            path, desc = DATASETS[entry]
+        else:
+            print(f"  skipping {entry}: not a known dataset and not name=path",
+                  file=sys.stderr)
+            continue
         if not path.exists():
             print(f"  skipping {name}: {path} not found", file=sys.stderr)
             continue
@@ -369,9 +381,22 @@ def main() -> int:
         if cand:
             per_trace.append((traits[name]["diff_acf1"],
                               float(np.mean([r["mae_ratio_mean"] for r in cand]))))
-    correlation = (round(float(np.corrcoef([a for a, _ in per_trace],
-                                           [b for _, b in per_trace])[0, 1]), 4)
-                   if len(per_trace) > 2 else None)
+    correlation = spearman = corr_p = None
+    if len(per_trace) > 2:
+        xs = [a for a, _ in per_trace]
+        ys = [b for _, b in per_trace]
+        correlation = round(float(np.corrcoef(xs, ys)[0, 1]), 4)
+        # A correlation over a handful of workloads is easy to obtain by chance,
+        # so the p-value is reported next to it rather than left to the reader.
+        # Spearman as well as Pearson, because the claim is about ordering.
+        try:
+            from scipy.stats import pearsonr, spearmanr
+
+            corr_p = float(pearsonr(xs, ys)[1])
+            rho, rho_p = spearmanr(xs, ys)
+            spearman = {"rho": round(float(rho), 4), "p": float(rho_p)}
+        except Exception:
+            pass
 
     payload = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -399,14 +424,22 @@ def main() -> int:
         "traces": traits,
         "rows": rows,
         "diff_acf1_vs_mae_ratio_correlation": correlation,
+        "diff_acf1_vs_mae_ratio_p": corr_p,
+        "diff_acf1_vs_mae_ratio_spearman": spearman,
+        "n_workloads": len(per_trace),
         "elapsed_seconds": round(time.time() - started, 1),
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     if correlation is not None:
-        print(f"\nCorrelation between a trace's diff_acf1 and its mean MAE ratio: "
-              f"{correlation:+.3f}  (n={len(per_trace)} traces)")
+        line = (f"\nCorrelation between a trace's diff_acf1 and its mean MAE ratio: "
+                f"{correlation:+.3f}  (n={len(per_trace)} workloads")
+        if corr_p is not None:
+            line += f", p={corr_p:.2g}"
+        if spearman is not None:
+            line += f"; Spearman rho={spearman['rho']:+.3f}, p={spearman['p']:.2g}"
+        print(line + ")")
     print(f"\nWrote {args.out} in {payload['elapsed_seconds']}s")
     return 0
 
