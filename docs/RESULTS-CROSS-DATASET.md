@@ -23,10 +23,14 @@ The short version:
   on the workload — and it is predictable in advance from one cheap statistic,
   before any model is trained.
 
-That last point is the contribution, and it is stronger than a qualitative claim:
-order the five workloads by that statistic and you have also ordered them by how
-well a learned forecaster does against persistence, with **no inversions**
-(r = +0.956).
+That last point is the contribution, though it is weaker than the five-workload
+version of this document claimed. Ordering the five workloads by that statistic
+also orders them by how well a learned forecaster does, with no inversions
+(r = +0.956) — but repeating the study over a **seventeen-sample panel** drops
+that to r = +0.553, and once shards of the same datacentre are properly grouped,
+neither correlation reaches significance. The rank ordering survives
+(Spearman ρ = +0.81 over 17 samples, p = 0.0003); the tidy line does not. §7 has
+the numbers and what still stands.
 
 Bitbrains — the trace the earlier study drew its conclusion from — turns out to
 be the *only* one of the five where any model loses to persistence, and the only
@@ -469,10 +473,11 @@ system were rebuilt today, XGBoost would not be the default predictor.
   aggregate further and could shift `CV` and `diff_acf1` somewhat.
 - **Costs remain simulated.** Demand is real; the instance catalogue and pricing
   model are not. Relative comparisons hold, absolute dollars do not.
-- **`diff_acf1` is a diagnostic supported by five points, not a law.** The
-  headline r = +0.956 is a correlation over **five** workloads, and a correlation
-  on five points is easy to obtain by chance — with n = 5 it is not even
-  significant at α = 0.05 on its own. What carries the argument is not the
+- **`diff_acf1` is a diagnostic, not a law — and §7 shows how much weaker it is
+  than five points suggested.** The r = +0.956 headline is a correlation over
+  **five** workloads, which is not significant at α = 0.05 on its own (exact
+  permutation p = 0.0083 in isolation, and 0.067 once the workloads are treated
+  as the five clusters they are). What carries the argument is not the
   coefficient but the mechanism: a random walk has no exploitable structure in
   its increments, which is a mathematical fact rather than an empirical one, and
   Bitbrains is the only workload here on that side of the boundary. Five points
@@ -484,3 +489,86 @@ system were rebuilt today, XGBoost would not be the default predictor.
   significant difference; 11 are losses (all Bitbrains) and 8 are wins. The study
   is better at ruling claims out than at establishing them, and it is reported
   that way.
+
+---
+
+## 7. The panel: what happened when the sample grew from 5 to 17
+
+Section 3's headline was a correlation of **+0.956 over five workloads**. Five
+points is not a sample, so the study was repeated over a seventeen-member panel:
+three disjoint entity shards of Bitbrains fastStorage, the three Bitbrains Rnd
+months (different VMs *and* different months), three shards each of Google and
+Azure, two of Alibaba, and three synthetic seeds. 204 cells, identical protocol.
+
+**The effect is real in rank terms and much weaker than five points suggested.**
+
+| Level of aggregation | n | Pearson r | p | Spearman ρ | p |
+|---|---|---|---|---|---|
+| sample (every panel member) | 17 | +0.553 | 0.011 | **+0.809** | **0.0003** |
+| collection (source + period) | 8 | +0.519 | 0.215 | +0.714 | 0.058 |
+| provider (most conservative) | 5 | +0.968 | 0.067 | +0.800 | 0.133 |
+
+All p-values are permutation p-values, exact wherever the sample is small enough
+to enumerate. scipy's parametric ones cannot be trusted here — `spearmanr`
+reports p = 1e-24 for a perfect rank correlation over five points, where the
+exact answer is 2/120 = 0.017.
+
+Three things follow, and only the first is good news for the original claim.
+
+**1. The ordering holds strongly; the linear relationship does not.** Spearman
+ρ = +0.81 (p = 0.0003) across seventeen samples says that ranking workloads by
+`diff_acf1` still ranks them by how badly a learned model does. But Pearson drops
+from +0.956 to +0.553 — the tidy straight line through five points was an artefact
+of having five points.
+
+**2. Nothing survives clustering correction.** Seventeen shards are not seventeen
+independent workloads, and at the collection level — the honest unit, where shards
+of one datacentre-month are averaged first — **neither correlation reaches
+significance** (p = 0.215 and 0.058, n = 8). The provider level is worse still.
+This study therefore *fails to establish* the graded relationship it set out to
+confirm.
+
+**3. What does survive is the extreme.** Every one of the six Bitbrains samples —
+spanning four collections and three separate months — loses, and loses badly:
+`diff_acf1` between −0.03 and +0.15, MAE ratios from 1.55 to **4.05**, and 61
+losing cells against zero wins. No non-Bitbrains sample loses more than a handful.
+The claim that survives replication is not "error scales smoothly with
+`diff_acf1`" but the narrower, stronger one: **on a workload whose increments
+carry no information, a learned forecaster does not merely fail to help — it does
+substantial harm**, and that is visible before training.
+
+### Google reversed, and that is the most instructive part
+
+In the five-workload study Google was the best case: `diff_acf1` = −0.521, and
+linear regression beat persistence at every horizon. In the panel, all three
+Google shards *lose* — but their `diff_acf1` is −0.245 to −0.285, less than half
+the original.
+
+So `diff_acf1` is itself sample-dependent: which 300 of 1,635 Borg tasks you
+aggregate changes it substantially. The direction of the relationship is
+preserved — the strongly mean-reverting Google sample won, the weakly
+mean-reverting ones lost — but it is a caution against reading the statistic off
+one sample and treating it as a property of "the workload".
+
+Within a collection the shards agree closely (`diff_acf1` spread 0.029 on
+average, worst 0.062), so the measurement is stable *given* a sampling scheme.
+That agreement is reassurance about measurement, not extra evidence for the
+claim, and the analysis reports it separately for that reason.
+
+### Consequence for the diagnostic
+
+`GET /api/workload/forecastability` is calibrated against this evidence, and its
+thresholds were always deliberately wide with an "inconclusive" band between
+them. The panel supports the *conservative* half of what it says — a
+near-random-walk trace is a strong signal to spend nothing on a forecaster — and
+does not support reading a fine-grained expectation off a mid-range value. The
+module's caveat already says it is a screening heuristic rather than a law; the
+panel is why that wording stays.
+
+Reproduce with:
+
+```bash
+./scripts/build_workload_panel.sh     # 17 samples
+./scripts/run_panel_study.sh --resume # 204 cells, resumable
+python scripts/analyse_panel.py       # clustered correlations
+```
