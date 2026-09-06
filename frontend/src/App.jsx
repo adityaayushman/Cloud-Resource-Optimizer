@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, ApiError, getApiBase, wakeUp } from './lib/api'
+import { api, ApiError, getApiBase, isApiConfigured, wakeUp } from './lib/api'
 import Ignition from './components/Ignition'
 import CommandCenter from './pages/CommandCenter'
 import Prediction from './pages/Prediction'
@@ -40,6 +40,7 @@ export default function App() {
   const [health, setHealth] = useState(null)
   const [meta, setMeta] = useState(null)
   const [error, setError] = useState(null)
+  const [needsEndpoint, setNeedsEndpoint] = useState(!isApiConfigured())
 
   const [page, setPage] = useState('command')
   const [session, setSession] = useState(null)
@@ -51,6 +52,11 @@ export default function App() {
   const say = (line) => setBootLines((prev) => [...prev, line])
 
   const ignite = useCallback(async () => {
+    if (!isApiConfigured()) {
+      // Nothing to connect to yet - ask rather than time out against a guess.
+      setNeedsEndpoint(true)
+      return
+    }
     setBooting(true)
     setError(null)
     setBootLines([])
@@ -113,7 +119,11 @@ export default function App() {
 
   if (!online) {
     return (
-      <Ignition onIgnite={ignite} booting={booting} lines={bootLines} error={error} />
+      <Ignition
+        onIgnite={ignite} booting={booting} lines={bootLines} error={error}
+        needsEndpoint={needsEndpoint}
+        onEndpointSet={() => setNeedsEndpoint(false)}
+      />
     )
   }
 

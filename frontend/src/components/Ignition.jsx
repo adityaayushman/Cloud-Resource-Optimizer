@@ -12,7 +12,8 @@ const CAPABILITIES = [
   { k: 'Evidence', v: '5 workloads · 60 tests' },
 ]
 
-export default function Ignition({ onIgnite, booting, lines, error }) {
+export default function Ignition({ onIgnite, booting, lines, error,
+                                   needsEndpoint, onEndpointSet }) {
   const [endpoint, setEndpoint] = useState(getApiBase())
   const [saved, setSaved] = useState(false)
   const logRef = useRef(null)
@@ -27,6 +28,7 @@ export default function Ignition({ onIgnite, booting, lines, error }) {
     e.preventDefault()
     setApiBase(endpoint)
     setSaved(true)
+    onEndpointSet?.()
     onIgnite()
   }
 
@@ -74,7 +76,7 @@ export default function Ignition({ onIgnite, booting, lines, error }) {
           ))}
         </ul>
 
-        {!booting && !error && (
+        {!booting && !error && !needsEndpoint && (
           <div className="reveal" style={{ '--d': '960ms' }}>
             <button className="btn btn-primary btn-lg btn-glow" onClick={onIgnite}>
               <span className="btn-lg-label">Initialise engine</span>
@@ -102,6 +104,38 @@ export default function Ignition({ onIgnite, booting, lines, error }) {
                 <span className="boot-caret">▸</span><span className="caret-blink" />
               </div>
             </div>
+          </div>
+        )}
+
+        {needsEndpoint && !error && (
+          <div className="boot-card">
+            <div className="boot-head">Connect your backend</div>
+            <p className="boot-error-detail">
+              This dashboard is live, but it does not know where its API is yet.
+              Paste the URL of your deployed backend — or set{' '}
+              <code className="mono">VITE_API_BASE_URL</code> in the hosting
+              project and redeploy to skip this step for everyone.
+            </p>
+            <form onSubmit={apply}>
+              <div className="field">
+                <label htmlFor="endpoint-setup">API endpoint</label>
+                <input
+                  id="endpoint-setup" type="url" value={endpoint} spellCheck="false"
+                  onChange={(e) => { setEndpoint(e.target.value); setSaved(false) }}
+                  placeholder="https://your-service.onrender.com"
+                  required
+                />
+              </div>
+              <div className="btn-row">
+                <button className="btn btn-primary" type="submit">Connect</button>
+                {saved && <span className="tag tag-ok">saved to this browser</span>}
+              </div>
+            </form>
+            <p className="panel-note">
+              The value is kept in this browser only. A link of the form{' '}
+              <code className="mono">?api=https://…</code> also works, which is
+              handy for sharing a dashboard pointed at a particular backend.
+            </p>
           </div>
         )}
 

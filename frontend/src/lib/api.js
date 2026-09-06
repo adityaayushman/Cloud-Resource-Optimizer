@@ -37,14 +37,25 @@ function resolveBase() {
     try { localStorage.setItem(STORAGE_KEY, fromQuery) } catch { /* private mode */ }
     return fromQuery
   }
-  return readStored()
-    || import.meta.env.VITE_API_BASE_URL
-    || `${window.location.protocol}//${window.location.hostname}:8000`
+  const stored = readStored() || import.meta.env.VITE_API_BASE_URL
+  if (stored) return stored
+
+  // Guessing port 8000 is right for local development and wrong everywhere
+  // else: on a deployed origin it produces `https://<this-host>:8000`, which
+  // cannot answer, so the user waits out every retry to be told an endpoint
+  // they never picked is unreachable. Off localhost, return nothing and let the
+  // UI ask.
+  const host = window.location.hostname
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '[::1]'
+  return isLocal ? `${window.location.protocol}//${host}:8000` : ''
 }
 
-let BASE = resolveBase().replace(/\/$/, '')
+let BASE = (resolveBase() || '').replace(/\/$/, '')
 
 export function getApiBase() { return BASE }
+
+/** False on a fresh deployment whose backend URL has not been set yet. */
+export function isApiConfigured() { return Boolean(BASE) }
 
 export function setApiBase(url) {
   BASE = String(url || '').trim().replace(/\/$/, '')
@@ -54,7 +65,7 @@ export function setApiBase(url) {
 
 export function clearApiBase() {
   try { localStorage.removeItem(STORAGE_KEY) } catch { /* private mode */ }
-  BASE = resolveBase().replace(/\/$/, '')
+  BASE = (resolveBase() || '').replace(/\/$/, '')
   return BASE
 }
 
