@@ -240,6 +240,10 @@ def main() -> int:
     ap.add_argument("--train-window", type=int, default=DEFAULT_TRAIN_WINDOW,
                     help="warm-up length before the first test block, and the "
                          "window length when --sliding is given (2016 = 7 days)")
+    ap.add_argument("--resume", action="store_true",
+                    help="append each finished cell to <out>.partial.jsonl and skip "
+                         "cells already there, so an interrupted run continues "
+                         "instead of restarting")
     ap.add_argument("--n-jobs", type=int, default=-1,
                     help="threads per model fit (-1 = all cores). Speed only; "
                          "the deployed predictor pins this to 1 for memory.")
@@ -292,6 +296,19 @@ def main() -> int:
           f"{'fixed-length sliding' if args.sliding else 'expanding'} training window, "
           f"CPU demand only.\n")
 
+    # A full panel run is hours long, and losing it to an interrupted session
+    # means losing every cell. Finished cells are appended to a sidecar file and
+    # skipped on the next run.
+    partial_path = args.out.with_suffix(".partial.jsonl")
+    cached: dict[tuple, dict] = {}
+    if args.resume and partial_path.exists():
+        for line in partial_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            cached[(row["dataset"], row["horizon_intervals"], row["algo"])] = row
+        print(f"Resuming: {len(cached)} cells already computed\n")
+
     rows: list[dict] = []
     done = 0
     for name, df in frames.items():
@@ -304,9 +321,16 @@ def main() -> int:
         for h in args.horizons:
             predictor_module.HORIZON = h
             for algo in args.algos:
+                done += 1
+                key = (name, h, algo)
+                if key in cached:
+                    rows.append(cached[key])
+                    print(f"  h={h:>2} ({h * args.interval:>2}m) {algo:<8} "
+                          f"cached   [{done}/{total}]", flush=True)
+                    continue
+
                 blocks = evaluate(df, algo, args.train_window,
                                   not args.sliding, args.n_jobs)
-                done += 1
                 if not blocks:
                     print(f"  h={h:>2} {algo:<8} too few blocks; skipped")
                     continue
@@ -334,6 +358,9 @@ def main() -> int:
                     "p_r2": p_r2, "p_mae": p_mae,
                 }
                 rows.append(row)
+                if args.resume:
+                    with partial_path.open("a", encoding="utf-8") as fh:
+                        fh.write(json.dumps(row) + "\n")
                 print(f"  h={h:>2} ({row['horizon_minutes']:>2}m) {algo:<8} "
                       f"MAE ratio {row['mae_ratio_mean']:.3f} "
                       f"({row['mae_wins']}/{row['blocks']} blocks) "

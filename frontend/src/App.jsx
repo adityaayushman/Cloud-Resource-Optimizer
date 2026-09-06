@@ -7,10 +7,30 @@ import MultiCloud from './pages/MultiCloud'
 import Results from './pages/Results'
 
 const PAGES = [
-  { id: 'command', label: 'Command Center' },
-  { id: 'prediction', label: 'Prediction & XAI' },
-  { id: 'multicloud', label: 'Multi-Cloud' },
-  { id: 'results', label: 'Results & Ablation' },
+  {
+    id: 'command', label: 'Command Center',
+    title: ['Command ', 'Center'],
+    blurb: 'A live closed loop: demand arrives, the forecaster predicts the next '
+      + 'interval, the agent picks a headroom setpoint, and the fleet is resized to match.',
+  },
+  {
+    id: 'prediction', label: 'Prediction & XAI',
+    title: ['Prediction ', '& Explainability'],
+    blurb: 'Whether a learned forecaster is worth building here, how the models '
+      + 'compare against a persistence baseline, and exact attribution for any single prediction.',
+  },
+  {
+    id: 'multicloud', label: 'Multi-Cloud',
+    title: ['Multi-Cloud ', 'Placement'],
+    blurb: 'Cost, latency and carbon normalised across AWS, Azure and GCP — the one '
+      + 'result in this project that replicated on every workload tested.',
+  },
+  {
+    id: 'results', label: 'Results & Ablation',
+    title: ['Results ', '& Ablation'],
+    blurb: 'Seven control policies against an identical trace per seed, so the only '
+      + 'variable between arms is the policy itself.',
+  },
 ]
 
 export default function App() {
@@ -98,9 +118,11 @@ export default function App() {
   }
 
   const shared = { session, setSession, guard, busy, meta, health, step, error }
+  const current = PAGES.find((p) => p.id === page) ?? PAGES[0]
 
   return (
     <div className="shell">
+      <div className="aurora" aria-hidden="true" />
       <header className="topbar">
         <div>
           <div className="brand">CLOUD<span>OPTIMA</span></div>
@@ -135,7 +157,20 @@ export default function App() {
         </div>
       </header>
 
-      <main className="content">
+      <main className="content" key={page}>
+        <div className="page-head">
+          <div>
+            <h1 className="page-head-title">
+              {current.title[0]}<em>{current.title[1]}</em>
+            </h1>
+            <p className="page-head-sub">{current.blurb}</p>
+          </div>
+          <div className="page-head-meta">
+            <span className="tag">tick {session?.status?.tick ?? 0}</span>
+            <span className="tag">{session?.status?.strategy ?? 'full'}</span>
+          </div>
+        </div>
+
         {error && (
           <div className="banner banner-error" role="alert">
             <strong>API error.</strong> {error}
