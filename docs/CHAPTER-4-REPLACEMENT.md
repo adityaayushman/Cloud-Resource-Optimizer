@@ -150,10 +150,22 @@ walk, so this interval's change carries no information about the next and
 persistence is already the best available forecast. Strongly negative means
 changes reverse, which persistence structurally cannot exploit and a model can.
 
-The relationship is not merely directional. Sorting the five workloads by
-`diff_acf1` also sorts them by mean MAE ratio across their twelve cells, with no
-inversions, at a correlation of **+0.956**. Bitbrains is the only workload on the
-wrong side of the boundary, and the only one where any model loses.
+Sorting the five workloads by `diff_acf1` also sorts them by mean MAE ratio
+across their twelve cells, with no inversions, at a correlation of +0.956.
+
+**That figure does not survive a larger sample and the chapter should not lean on
+it.** Repeating the identical protocol over a seventeen-member panel — disjoint
+entity shards plus three separate Bitbrains months, 204 cells — gives Pearson
+r = +0.553 and Spearman ρ = +0.809 (p = 0.0003). Grouped by collection, which is
+the honest unit because shards of one datacentre-month are not independent
+workloads, neither correlation is significant (p = 0.215 and 0.058, n = 8).
+
+What replicates is the extreme rather than the gradient: every one of the six
+Bitbrains samples, across four collections and three months, loses — MAE ratios
+from 1.55 to 4.05, sixty-one losing cells and no wins. The defensible claim is
+therefore the narrow one. On a workload whose increments carry no information a
+learned forecaster does not merely fail to help, it does substantial harm, and
+that is identifiable before any model is trained.
 
 The statistic that does *not* work is the autocorrelation of the level, which
 exceeds 0.84 on all five workloads including the random walk. That is precisely

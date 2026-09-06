@@ -139,8 +139,9 @@ What does generalise is **which case you are in, and that is predictable before
 any model is trained** — from `diff_acf1`, the lag-1 autocorrelation of the first
 difference. Near zero means a random walk, where "next equals current" is already
 optimal; strongly negative means changes reverse, which persistence cannot
-exploit and a model can. Order the workloads by it and you order the outcomes:
-**r = +0.956**, no inversions. See the table below.
+exploit and a model can. Ordering the workloads by it orders the outcomes — a
+relationship that survives replication in rank terms and weakens considerably in
+magnitude. See the table below and `docs/RESULTS-CROSS-DATASET.md` §7.
 
 Bitbrains is the only trace on the wrong side of that line, and it is the one the
 earlier single-dataset study drew its conclusion from. The diagnostic ships as
@@ -196,8 +197,12 @@ significant difference. Figures are the best model's median MAE ratio; the last
 column counts all 12 cells (4 horizons × 3 models) per workload.
 
 **The rows are sorted by `diff_acf1`, and that sort also orders the outcomes —
-with no inversions.** Correlation between a workload's `diff_acf1` and its mean
-MAE ratio across its 12 cells is **+0.956**.
+with no inversions.** Correlation across these five is +0.956; repeated over a
+**17-sample panel** it falls to +0.553, and once shards of one datacentre are
+grouped it stops being significant at all. What replicates is the rank ordering
+(Spearman ρ = +0.81, p = 0.0003) and the extreme case: all six Bitbrains samples
+lose, by MAE ratios up to 4.05, with zero wins between them. See
+[§7](docs/RESULTS-CROSS-DATASET.md).
 
 Three things follow. **Bitbrains is the only workload where any model loses
 significantly**, and it loses 11 of 12 cells. **On synthetic data breakeven is

@@ -1,0 +1,157 @@
+{
+  "source": "panel_study.json",
+  "per_sample": {
+    "bb_fs_0": {
+      "diff_acf1": 0.1543,
+      "mae_ratio": 1.5521333333333336,
+      "won": 0,
+      "lost": 8,
+      "cells": 12
+    },
+    "bb_fs_1": {
+      "diff_acf1": 0.1343,
+      "mae_ratio": 1.5873749999999998,
+      "won": 0,
+      "lost": 10,
+      "cells": 12
+    },
+    "bb_fs_2": {
+      "diff_acf1": 0.0922,
+      "mae_ratio": 1.6333416666666667,
+      "won": 0,
+      "lost": 10,
+      "cells": 12
+    },
+    "bb_rnd_07": {
+      "diff_acf1": -0.0305,
+      "mae_ratio": 4.053774999999999,
+      "won": 0,
+      "lost": 11,
+      "cells": 12
+    },
+    "bb_rnd_08": {
+      "diff_acf1": 0.1123,
+      "mae_ratio": 1.5912833333333332,
+      "won": 0,
+      "lost": 12,
+      "cells": 12
+    },
+    "bb_rnd_09": {
+      "diff_acf1": 0.094,
+      "mae_ratio": 2.7847333333333335,
+      "won": 0,
+      "lost": 10,
+      "cells": 12
+    },
+    "google_0": {
+      "diff_acf1": -0.2454,
+      "mae_ratio": 1.3119333333333334,
+      "won": 0,
+      "lost": 8,
+      "cells": 12
+    },
+    "google_1": {
+      "diff_acf1": -0.2539,
+      "mae_ratio": 1.2271083333333335,
+      "won": 0,
+      "lost": 2,
+      "cells": 12
+    },
+    "google_2": {
+      "diff_acf1": -0.2848,
+      "mae_ratio": 1.2545749999999998,
+      "won": 0,
+      "lost": 3,
+      "cells": 12
+    },
+    "azure_0": {
+      "diff_acf1": -0.308,
+      "mae_ratio": 1.0198249999999998,
+      "won": 3,
+      "lost": 0,
+      "cells": 12
+    },
+    "azure_1": {
+      "diff_acf1": -0.3017,
+      "mae_ratio": 0.9647416666666667,
+      "won": 3,
+      "lost": 0,
+      "cells": 12
+    },
+    "azure_2": {
+      "diff_acf1": -0.3211,
+      "mae_ratio": 0.9672000000000001,
+      "won": 3,
+      "lost": 0,
+      "cells": 12
+    },
+    "alibaba_0": {
+      "diff_acf1": -0.2163,
+      "mae_ratio": 1.0621166666666666,
+      "won": 0,
+      "lost": 0,
+      "cells": 12
+    },
+    "alibaba_1": {
+      "diff_acf1": -0.2157,
+      "mae_ratio": 1.0580083333333332,
+      "won": 0,
+      "lost": 0,
+      "cells": 12
+    },
+    "syn_42": {
+      "diff_acf1": -0.3494,
+      "mae_ratio": 0.9993083333333334,
+      "won": 1,
+      "lost": 0,
+      "cells": 12
+    },
+    "syn_7": {
+      "diff_acf1": -0.3284,
+      "mae_ratio": 1.019975,
+      "won": 0,
+      "lost": 0,
+      "cells": 12
+    },
+    "syn_99": {
+      "diff_acf1": -0.3248,
+      "mae_ratio": 0.9925249999999997,
+      "won": 2,
+      "lost": 0,
+      "cells": 12
+    }
+  },
+  "levels": [
+    {
+      "level": "sample (all panel members)",
+      "n": 17,
+      "pearson_r": 0.5526,
+      "pearson_permutation_p": 0.01134943252837358,
+      "spearman_rho": 0.8088,
+      "spearman_permutation_p": 0.00024998750062496874,
+      "p_values": "sampled permutation, not parametric",
+      "clustered": true
+    },
+    {
+      "level": "collection (source+period)",
+      "n": 8,
+      "pearson_r": 0.5188,
+      "pearson_permutation_p": 0.21495535714285716,
+      "spearman_rho": 0.7143,
+      "spearman_permutation_p": 0.05758928571428571,
+      "p_values": "exact permutation, not parametric",
+      "clustered": false
+    },
+    {
+      "level": "provider (most conservative)",
+      "n": 5,
+      "pearson_r": 0.9677,
+      "pearson_permutation_p": 0.06666666666666667,
+      "spearman_rho": 0.8,
+      "spearman_permutation_p": 0.13333333333333333,
+      "p_values": "exact permutation, not parametric",
+      "clustered": false
+    }
+  ],
+  "note": "Seventeen panel members are not seventeen independent workloads. Shards of one collection share a datacentre, a month and a diurnal cycle, so the sample-level p-value is optimistic. The collection level is the one the claim should be read at."
+}
