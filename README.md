@@ -1,4 +1,30 @@
-# CloudOptima — Cloud Computing Resource Optimizer
+<div align="center">
+
+# ☁️ CloudOptima
+
+**Predictive, reinforcement-learned multi-cloud resource optimizer: XGBoost forecasts demand, a Deep Q-Network sets capacity across AWS, Azure and GCP, and SHAP explains every decision.**
+
+<p>
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/XGBoost-EC6B23?style=for-the-badge&logo=xgboost&logoColor=white" />
+  <img src="https://img.shields.io/badge/Deep_Q--Network-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" />
+  <img src="https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge&logo=opensourceinitiative&logoColor=white" />
+</p>
+
+<p>
+  <a href="https://cloud-resource-optimizer-api.onrender.com/docs"><img src="https://img.shields.io/badge/Live_API-46E3B7?style=for-the-badge&logo=render&logoColor=white" /></a>
+</p>
+
+<p>
+  <img src="https://img.shields.io/github/stars/adityaayushman/Cloud-Resource-Optimizer?style=social" /> <img src="https://img.shields.io/github/last-commit/adityaayushman/Cloud-Resource-Optimizer?style=flat-square" /> <img src="https://img.shields.io/github/languages/top/adityaayushman/Cloud-Resource-Optimizer?style=flat-square" />
+</p>
+
+</div>
+
+---
 
 Predictive, reinforcement-learned, multi-cloud resource optimisation, delivered as
 a React dashboard (Vercel) over a FastAPI engine (Render).
