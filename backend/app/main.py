@@ -66,12 +66,17 @@ app = FastAPI(
 
 # The Vercel deployment origin is injected at runtime. Preview deployments get
 # a generated subdomain, so the regex covers *.vercel.app rather than pinning
-# one host and breaking every preview build.
+# one host and breaking every preview build. The Render-hosted dashboard from
+# render.yaml is allowed the same way, including its `-pr-N` preview hosts;
+# without it that dashboard's every request is blocked by the browser.
 _origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins or ["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=(
+        r"https://(.*\.vercel\.app"
+        r"|cloud-resource-optimizer-dashboard(-[a-z0-9-]+)?\.onrender\.com)"
+    ),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
