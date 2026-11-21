@@ -176,7 +176,7 @@ export default function App() {
             <p className="page-head-sub">{current.blurb}</p>
           </div>
           <div className="page-head-meta">
-            <span className="tag">tick {session?.status?.tick ?? 0}</span>
+            <span className="tag">tick {session?.tick_index ?? 0}</span>
             <span className="tag">{session?.status?.strategy ?? 'full'}</span>
           </div>
         </div>
