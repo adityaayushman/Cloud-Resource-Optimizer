@@ -95,6 +95,10 @@ async function request(path, { method = 'GET', body, timeout = 90000 } = {}) {
     if (!res.ok) {
       throw new ApiError(payload?.detail || `Request failed (${res.status})`, res.status, payload)
     }
+    // The API names the identifier `session_id`; the UI addresses sessions as
+    // `session.id`. Without this alias every call after creation went to
+    // /api/session/undefined/... and returned 404.
+    if (payload && payload.session_id && payload.id === undefined) payload.id = payload.session_id
     return payload
   } catch (err) {
     if (err.name === 'AbortError') {
