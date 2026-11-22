@@ -1,6 +1,6 @@
 <div align="center">
 
-# ☁️ CloudOptima
+# CloudOptima
 
 **Predictive, reinforcement-learned multi-cloud resource optimizer: XGBoost forecasts demand, a Deep Q-Network sets capacity across AWS, Azure and GCP, and SHAP explains every decision.**
 

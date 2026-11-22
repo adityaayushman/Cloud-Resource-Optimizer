@@ -2,7 +2,7 @@
 
 `REPORT-NOTES.md` says *what* is wrong with the submitted report. This says what
 to put instead, so each item is a paste rather than a rewrite. Line references
-are to the submitted `final report.pdf`.
+are to the submitted `docs/papers/final report.pdf`.
 
 Three of the items in the notes are now closed and are listed at the bottom
 rather than repeated here.
