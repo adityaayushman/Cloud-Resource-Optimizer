@@ -18,10 +18,6 @@
   <a href="https://cloud-resource-optimizer-api.onrender.com/docs"><img src="https://img.shields.io/badge/Live_API-46E3B7?style=for-the-badge&logo=render&logoColor=white" /></a>
 </p>
 
-<p>
-  <img src="https://img.shields.io/github/stars/adityaayushman/Cloud-Resource-Optimizer?style=social" /> <img src="https://img.shields.io/github/last-commit/adityaayushman/Cloud-Resource-Optimizer?style=flat-square" /> <img src="https://img.shields.io/github/languages/top/adityaayushman/Cloud-Resource-Optimizer?style=flat-square" />
-</p>
-
 </div>
 
 ---
