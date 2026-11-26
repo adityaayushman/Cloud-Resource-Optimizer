@@ -23,7 +23,7 @@
 ---
 
 <p align="center">
-  <img src="Cloud-Resource-Optimizer/demo.webp" alt="CloudOptima demo" width="420" />
+  <img src="Cloud-Resource-Optimizer/demo.webp" alt="CloudOptima demo" width="640" />
 </p>
 
 Predictive, reinforcement-learned, multi-cloud resource optimisation, delivered as
